@@ -1,0 +1,44 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 RAKwireless
+# SPDX-License-Identifier: Apache-2.0
+
+config RZI_LORA
+	bool "RZI raw LoRa and FSK service"
+	help
+	  Enable the backend-independent RZI raw LoRa and FSK service used by
+	  P2P AT commands and radio certification tests.
+
+if RZI_LORA
+
+choice RZI_LORA_BACKEND
+	prompt "Raw LoRa backend"
+	default RZI_LORA_BACKEND_TEST if ZTEST
+	default RZI_LORA_BACKEND_USP if RZI_LORAWAN_BACKEND_USP
+	default RZI_LORA_BACKEND_ZEPHYR if LORA
+
+config RZI_LORA_BACKEND_TEST
+	bool "In-process test backend"
+	depends on ZTEST
+	help
+	  Software loopback used by host tests. Do not use this option in
+	  production firmware.
+
+config RZI_LORA_BACKEND_USP
+	bool "Semtech USP radio access controller"
+	depends on RZI_LORAWAN_BACKEND_USP
+	select RZI_USP
+	help
+	  Run P2P send and receive as USP radio access controller (RAC)
+	  transactions below LoRaWAN priority, so P2P and LoRaWAN share the
+	  radio. Radio certification tests (CW, PER, RSSI) use the LoRa Basics
+	  Modem test mode, which suspends LoRaWAN until rzi_lora_stop().
+
+config RZI_LORA_BACKEND_ZEPHYR
+	bool "Zephyr LoRa driver"
+	depends on LORA
+	help
+	  Use Zephyr's public <zephyr/drivers/lora.h> driver. This cannot be
+	  combined with CONFIG_RZI_LORAWAN_BACKEND_USP.
+
+endchoice
+
+endif # RZI_LORA

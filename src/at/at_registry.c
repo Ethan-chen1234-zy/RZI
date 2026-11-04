@@ -1,0 +1,171 @@
+/* SPDX-FileCopyrightText: Copyright (c) 2026 RAKwireless */
+/* SPDX-License-Identifier: Apache-2.0 */
+/**
+ * @file
+ * @brief AT command and extension registry implementation.
+ */
+
+#include <errno.h>
+#include <string.h>
+
+#include <zephyr/kernel.h>
+
+#include "at_priv.h"
+
+static const struct rzi_at_command *registered[CONFIG_RZI_AT_MAX_COMMANDS];
+static const struct rzi_at_extension *extensions[CONFIG_RZI_AT_MAX_EXTENSIONS];
+static size_t command_count;
+static size_t extension_count;
+static bool sealed;
+
+static bool valid_name(const char *name)
+{
+	if (name == NULL || name[0] == '\0') {
+		return false;
+	}
+	for (const char *p = name; *p != '\0'; ++p) {
+		if (!((*p >= 'A' && *p <= 'Z') || (*p >= '0' && *p <= '9') || *p == '_')) {
+			return false;
+		}
+	}
+	return true;
+}
+
+int rzi_at_register(const struct rzi_at_command *commands, size_t count)
+{
+	if (sealed) {
+		return -RZI_ERR_INVALID_STATE;
+	}
+	if ((commands == NULL && count != 0U) || command_count + count > ARRAY_SIZE(registered)) {
+		return -RZI_ERR_INVALID;
+	}
+	for (size_t i = 0; i < count; ++i) {
+		if (!valid_name(commands[i].name) || commands[i].handler == NULL) {
+			return -RZI_ERR_INVALID;
+		}
+		for (size_t j = 0; j < command_count; ++j) {
+			if (strcmp(commands[i].name, registered[j]->name) == 0) {
+				return -RZI_ERR_ALREADY;
+			}
+		}
+		for (size_t j = 0; j < i; ++j) {
+			if (strcmp(commands[i].name, commands[j].name) == 0) {
+				return -RZI_ERR_ALREADY;
+			}
+		}
+	}
+	for (size_t i = 0; i < count; ++i) {
+		registered[command_count++] = &commands[i];
+	}
+	return 0;
+}
+
+void rzi_at_registry_seal(void)
+{
+	sealed = true;
+}
+
+int rzi_at_registry_add_extension(const struct rzi_at_extension *extension)
+{
+	if (extension == NULL || extension_count >= ARRAY_SIZE(extensions)) {
+		return -RZI_ERR_NO_RESOURCE;
+	}
+	extensions[extension_count++] = extension;
+	return 0;
+}
+
+int rzi_at_registry_start_extensions(void)
+{
+	for (size_t i = 0; i < extension_count; ++i) {
+		if (extensions[i]->start != NULL) {
+			int rc = extensions[i]->start();
+
+			if (rc != 0) {
+				return rc;
+			}
+		}
+	}
+	return 0;
+}
+
+void rzi_at_registry_process_extensions(void)
+{
+	for (size_t i = 0; i < extension_count; ++i) {
+		if (extensions[i]->process != NULL) {
+			extensions[i]->process();
+		}
+	}
+}
+
+int rzi_at_registry_factory_reset(void)
+{
+	int result = 0;
+
+	for (size_t i = 0; i < extension_count; ++i) {
+		if (extensions[i]->factory_reset != NULL) {
+			int rc = extensions[i]->factory_reset();
+
+			if (rc != 0 && result == 0) {
+				result = rc;
+			}
+		}
+	}
+	return result;
+}
+
+int rzi_at_dispatch(const char *name, enum rzi_at_operation operation, const char *argument)
+{
+	for (size_t i = 0; i < command_count; ++i) {
+		const struct rzi_at_command *command = registered[i];
+
+		if (strcmp(name, command->name) != 0) {
+			continue;
+		}
+		if (operation == RZI_AT_OP_HELP) {
+			return command->help == NULL
+				       ? -RZI_ERR_NOT_SUPPORTED
+				       : rzi_at_respond_value("AT+%s: %s", command->name,
+							      command->help);
+		}
+		if ((command->allowed_operations & (1U << operation)) == 0U) {
+			return -RZI_ERR_NOT_SUPPORTED;
+		}
+		struct rzi_at_request request = {
+			.operation = operation,
+			.argument = argument,
+		};
+
+		return command->handler(&request, command->user_data);
+	}
+	return -RZI_ERR_NOT_FOUND;
+}
+
+int rzi_at_registry_write_all_help(void)
+{
+	int rc;
+
+	rc = rzi_at_write_raw(
+		"\r\nAT+<CMD>?: help on <CMD>\r\nAT+<CMD>: run <CMD>\r\nAT+<CMD>=<value>: set the "
+		"value\r\nAT+<CMD>=?: get the value\r\n");
+	if (rc != 0) {
+		return rc;
+	}
+	for (size_t i = 0; i < command_count; ++i) {
+		const struct rzi_at_command *command = registered[i];
+		char line[160];
+		int n;
+
+		if (command->help == NULL) {
+			continue;
+		}
+		n = snprintk(line, sizeof(line), "AT+%s: %s\r\n", command->name, command->help);
+		if (n < 0 || n >= (int)sizeof(line)) {
+			return -RZI_ERR_OVERFLOW;
+		}
+		rc = rzi_at_write_raw(line);
+		if (rc != 0) {
+			return rc;
+		}
+	}
+	return rzi_at_respond_status(RZI_AT_STATUS_OK);
+}

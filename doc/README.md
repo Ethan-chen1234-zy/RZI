@@ -1,0 +1,71 @@
+# Documentation
+
+Status: index
+
+In-tree copies are English. File names are lowercase kebab-case and do not
+repeat `rzi`.
+
+Every page uses the same front matter: a short title, a `Status:` line, a
+purpose paragraph, and `See also:` links to peer documents. Status values:
+
+| Status | Meaning |
+|---|---|
+| index | This catalog |
+| normative | Rules new code must follow |
+| implemented | Describes current source |
+| evaluation | Findings from a second implementation |
+| superseded | Kept only so old links resolve |
+
+`include/rzi/` is the ABI. These Markdown files explain ownership, build
+switches, and limits that do not belong in a header comment.
+
+## Architecture and boot
+
+| Document | Status | Contents |
+|---|---|---|
+| [architecture.md](./architecture.md) | implemented | Layers, ownership, backend policy |
+| [usp-stack.md](./usp-stack.md) | implemented | RZI on USP / usp_zephyr / LBM, traced call chains |
+| [boot.md](./boot.md) | implemented | Product boards, MCUBoot, slots, merged image |
+| [power.md](./power.md) | implemented | Policy, PM locks, both boards |
+| [west-patch.md](./west-patch.md) | implemented | Upstream compatibility patches |
+
+## Service APIs
+
+| Document | Status | Contents |
+|---|---|---|
+| [error-codes.md](./error-codes.md) | normative | Closed `RZI_ERR_*` catalog |
+| [lorawan-api.md](./lorawan-api.md) | normative | LoRaWAN public C contract |
+| [lora-api.md](./lora-api.md) | implemented | Raw LoRa / FSK P2P C contract |
+| [lorawan-backends.md](./lorawan-backends.md) | implemented | USP vs Zephyr build switch |
+| [lorawan-backend-zephyr.md](./lorawan-backend-zephyr.md) | evaluation | Zephyr `lorawan_*` adapter |
+| [fuota.md](./fuota.md) | implemented | ChirpStack FUOTA (dual-slot) |
+| [storage-api.md](./storage-api.md) | implemented | Namespaced key-value storage |
+| [power-api.md](./power-api.md) | implemented | `rzi_power_*` C contract |
+| [at-framework.md](./at-framework.md) | implemented | AT framework, registry, adapters |
+| [at-command-compatibility.md](./at-command-compatibility.md) | implemented | Registered commands vs RUI3 |
+| [rui3-mapping.md](./rui3-mapping.md) | implemented | Public C ABI mapped from RUI3, plus C-level gaps |
+| [rui3-gap.md](./rui3-gap.md) | superseded | Redirect to rui3-mapping and AT compatibility |
+
+## Standards
+
+The [contribution guide](../CONTRIBUTING.md) covers the development and review
+workflow, including commit organization, rebase, DCO, and local validation.
+
+| Document | Status | Contents |
+|---|---|---|
+| [coding-standards.md](./coding-standards.md) | normative | Layout, naming, errors, commits |
+| [api-docs.md](./api-docs.md) | normative | Doxygen and compiler annotations |
+| [sbom.md](./sbom.md) | implemented | SPDX 3 firmware and module SBOMs, minimum elements, releases |
+| [security.md](./security.md) | normative | Vulnerability reporting, triage, VEX, CRA timelines |
+| [ci.md](./ci.md) | implemented | CI jobs, version pins, local reproduction |
+| [maintainer-workflow.md](./maintainer-workflow.md) | normative | Review, merge gates, GitHub rulesets, release procedure |
+| [naming-conventions.md](./naming-conventions.md) | superseded | Redirect to coding standards §3 |
+
+## Doxygen
+
+```bash
+tools/docs/generate-doxygen.sh
+```
+
+Opens `doc/doxygen/html/index.html`. Generated HTML is not committed.
+Rules are in [api-docs.md](./api-docs.md).

@@ -1,0 +1,315 @@
+/* SPDX-FileCopyrightText: Copyright (c) 2026 RAKwireless */
+/* SPDX-License-Identifier: Apache-2.0 */
+
+#include <errno.h>
+#include <string.h>
+
+#include <zephyr/kernel.h>
+#include <zephyr/sys/atomic.h>
+#include <zephyr/ztest.h>
+
+#include <rzi/at/at.h>
+#include <rzi/lorawan/lorawan.h>
+
+#include "backend/lorawan_backend.h"
+
+#if defined(CONFIG_RZI_AT_NVM)
+static bool fail_storage_write;
+int __real_rzi_storage_write(const char *ns, const char *key, const void *value, size_t size);
+
+int __wrap_rzi_storage_write(const char *ns, const char *key, const void *value, size_t size)
+{
+	return fail_storage_write ? -RZI_ERR_IO : __real_rzi_storage_write(ns, key, value, size);
+}
+#endif
+
+K_SEM_DEFINE(output_ready, 0, 16);
+K_MUTEX_DEFINE(output_lock);
+
+static char output[2048];
+static size_t output_size;
+static rzi_lorawan_event_sink_t fake_sink;
+static atomic_t fake_joined;
+static struct rzi_lorawan_join_config received_join_config;
+static uint8_t received_port;
+static uint8_t received_payload[8];
+static size_t received_size;
+static enum rzi_lorawan_message_type received_message_type;
+
+static int io_write(const uint8_t *data, size_t size, void *user_data)
+{
+	ARG_UNUSED(user_data);
+
+	k_mutex_lock(&output_lock, K_FOREVER);
+	if (output_size + size >= sizeof(output)) {
+		k_mutex_unlock(&output_lock);
+		return -RZI_ERR_OVERFLOW;
+	}
+	memcpy(output + output_size, data, size);
+	output_size += size;
+	output[output_size] = '\0';
+	k_mutex_unlock(&output_lock);
+	k_sem_give(&output_ready);
+	return 0;
+}
+
+static int fake_start(enum rzi_lorawan_region region, bool join_backoff_bypass,
+		      rzi_lorawan_event_sink_t event_sink)
+{
+	const struct rzi_lorawan_backend_event event = {
+		.type = RZI_LORAWAN_BACKEND_READY,
+	};
+
+	zassert_equal(region, RZI_LORAWAN_REGION_EU_868);
+	zassert_false(join_backoff_bypass);
+	fake_sink = event_sink;
+	fake_sink(&event);
+	return 0;
+}
+
+static int fake_join(const struct rzi_lorawan_join_config *config)
+{
+	const struct rzi_lorawan_backend_event event = {
+		.type = RZI_LORAWAN_BACKEND_JOINED,
+	};
+
+	received_join_config = *config;
+	atomic_set(&fake_joined, 1);
+	fake_sink(&event);
+	return 0;
+}
+
+static int fake_leave(void)
+{
+	atomic_clear(&fake_joined);
+	return 0;
+}
+
+static int fake_send(uint8_t port, const uint8_t *data, size_t size,
+		     enum rzi_lorawan_message_type type)
+{
+	const struct rzi_lorawan_backend_event event = {
+		.type = RZI_LORAWAN_BACKEND_TX_DONE,
+		.tx_status = RZI_LORAWAN_EVENT_TXDONE_CONFIRMED,
+	};
+
+	received_port = port;
+	received_size = size;
+	received_message_type = type;
+	memcpy(received_payload, data, size);
+	fake_sink(&event);
+	return 0;
+}
+
+static int fake_set_class(enum rzi_lorawan_class device_class)
+{
+	return device_class == RZI_LORAWAN_CLASS_A ? 0 : -RZI_ERR_NOT_SUPPORTED;
+}
+
+static int fake_is_joined(bool *joined)
+{
+	*joined = atomic_get(&fake_joined) != 0;
+	return 0;
+}
+
+static int fake_is_busy(bool *busy)
+{
+	*busy = false;
+	return 0;
+}
+
+const struct rzi_lorawan_backend_api rzi_lorawan_backend = {
+	.capabilities = RZI_LORAWAN_CAP_OTAA | RZI_LORAWAN_CAP_CLASS_A | RZI_LORAWAN_CAP_CHANNEL,
+	.base.start = fake_start,
+	.base.join = fake_join,
+	.base.leave = fake_leave,
+	.base.send = fake_send,
+	.base.set_class = fake_set_class,
+	.base.is_joined = fake_is_joined,
+	.base.is_busy = fake_is_busy,
+};
+
+static void reset_output(void)
+{
+	k_mutex_lock(&output_lock, K_FOREVER);
+	output_size = 0;
+	output[0] = '\0';
+	k_mutex_unlock(&output_lock);
+	k_sem_reset(&output_ready);
+}
+
+static void send_command_until(const char *command, const char *expected)
+{
+	int64_t deadline = k_uptime_get() + 1000;
+
+	reset_output();
+	zassert_ok(rzi_at_receive((const uint8_t *)command, strlen(command)));
+	for (;;) {
+		bool found;
+		int64_t remaining = deadline - k_uptime_get();
+
+		zassert_true(remaining > 0);
+		zassert_ok(k_sem_take(&output_ready, K_MSEC(remaining)));
+		k_mutex_lock(&output_lock, K_FOREVER);
+		found = strstr(output, expected) != NULL;
+		k_mutex_unlock(&output_lock);
+		if (found) {
+			return;
+		}
+	}
+}
+
+static void *setup(void)
+{
+	static const struct rzi_at_io io = {
+		.write = io_write,
+	};
+
+	zassert_ok(rzi_at_start(&io));
+	return NULL;
+}
+
+ZTEST(rzi_at_lorawan_command, test_api_and_at_share_configuration)
+{
+	bool confirmed;
+	uint8_t retries;
+	uint32_t net_id;
+
+	zassert_ok(rzi_lorawan_set_confirmed(true));
+	send_command_until("AT+CFM=?\r", "AT+CFM=1");
+	send_command_until("AT+CFM=0\r", "\r\nOK\r\n");
+	zassert_ok(rzi_lorawan_get_confirmed(&confirmed));
+	zassert_false(confirmed);
+	zassert_ok(rzi_lorawan_set_retries(4));
+	send_command_until("AT+RETY=?\r", "AT+RETY=4");
+	send_command_until("AT+RETY=2\r", "\r\nOK\r\n");
+	zassert_ok(rzi_lorawan_get_retries(&retries));
+	zassert_equal(retries, 2);
+	zassert_ok(rzi_lorawan_set_net_id(0x123456));
+	send_command_until("AT+NETID=?\r", "AT+NETID=123456");
+	send_command_until("AT+NETID=654321\r", "\r\nOK\r\n");
+	zassert_ok(rzi_lorawan_get_net_id(&net_id));
+	zassert_equal(net_id, 0x654321);
+	zassert_ok(rzi_lorawan_set_region(RZI_LORAWAN_REGION_US_915));
+	send_command_until("AT+BAND=?\r", "AT+BAND=5");
+	send_command_until("AT+BAND=4\r", "\r\nOK\r\n");
+}
+
+#if defined(CONFIG_RZI_AT_NVM)
+ZTEST(rzi_at_lorawan_command, test_at_owned_settings_keep_old_value_on_save_error)
+{
+	send_command_until("AT+ALIAS=old_name\r", "\r\nOK\r\n");
+	send_command_until("AT+PWORD=oldpass\r", "\r\nOK\r\n");
+	fail_storage_write = true;
+	send_command_until("AT+ALIAS=new_name\r", "AT_ERROR");
+	send_command_until("AT+PWORD=newpass\r", "AT_ERROR");
+	fail_storage_write = false;
+	send_command_until("AT+ALIAS=?\r", "AT+ALIAS=old_name");
+	send_command_until("AT+PWORD=?\r", "AT+PWORD=oldpass");
+}
+#endif
+
+/* Runs before the service starts; the channel commands work on the stored mask. */
+ZTEST(rzi_at_lorawan_command, test_channel_commands)
+{
+	send_command_until("AT+MASK=?\r", "AT_ERROR");
+	send_command_until("AT+BAND=5\r", "\r\nOK\r\n");
+	send_command_until("AT+MASK=?\r", "AT+MASK=01FF");
+	send_command_until("AT+CHE=?\r", "AT+CHE=0\r");
+	send_command_until("AT+CHS=?\r", "AT+CHS=0\r");
+
+	/* MASK bit 1: channels 8-15 and 65. */
+	send_command_until("AT+MASK=0002\r", "\r\nOK\r\n");
+	send_command_until("AT+MASK=?\r", "AT+MASK=0002");
+	send_command_until("AT+CHE=?\r", "AT+CHE=2\r");
+	send_command_until("AT+MASK=0200\r", "AT_PARAM_ERROR");
+	send_command_until("AT+MASK=12\r", "AT_PARAM_ERROR");
+
+	/* CHE 9: the 500 kHz channels 64-71. */
+	send_command_until("AT+CHE=1:9\r", "\r\nOK\r\n");
+	send_command_until("AT+CHE=?\r", "AT+CHE=1:9\r");
+	send_command_until("AT+MASK=?\r", "AT+MASK=0101");
+	send_command_until("AT+CHE=10\r", "AT_PARAM_ERROR");
+	send_command_until("AT+CHE=1:\r", "AT_PARAM_ERROR");
+
+	/* Channel 10. */
+	send_command_until("AT+CHS=904300000\r", "\r\nOK\r\n");
+	send_command_until("AT+CHS=?\r", "AT+CHS=904300000");
+	send_command_until("AT+CHE=?\r", "AT+CHE=2\r");
+	send_command_until("AT+CHS=904400000\r", "AT_PARAM_ERROR");
+
+	send_command_until("AT+CHE=0\r", "\r\nOK\r\n");
+	send_command_until("AT+MASK=?\r", "AT+MASK=01FF");
+	send_command_until("AT+BAND=4\r", "\r\nOK\r\n");
+}
+
+ZTEST(rzi_at_lorawan_command, test_rui3_compatible_otaa_workflow)
+{
+	static const uint8_t expected_dev_eui[] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88};
+	static const uint8_t expected_join_eui[] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
+	static const uint8_t expected_app_key[] = {
+		0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
+		0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff,
+	};
+
+	send_command_until("AT+NWM=?\r", "AT+NWM=1");
+	send_command_until("AT+NWM=0\r", "AT_ERROR");
+	send_command_until("AT+DEVEUI?\r", "AT+DEVEUI: get or set the device EUI (8 bytes in hex)");
+	send_command_until("AT+DEVEUI\r", "AT_ERROR");
+	send_command_until("AT+NJS\r", "AT_ERROR");
+	send_command_until("AT+SEND=?\r", "AT_ERROR");
+	send_command_until("AT+DEVEUI=1122334455667788\r", "\r\nOK\r\n");
+	send_command_until("AT+DEVEUI=11223344556677GG\r", "AT_PARAM_ERROR");
+	send_command_until("AT+DEVEUI=?\r", "AT+DEVEUI=1122334455667788");
+	send_command_until("AT+APPEUI=0102030405060708\r", "\r\nOK\r\n");
+	send_command_until("AT+APPKEY=00112233445566778899AABBCCDDEEFF\r", "\r\nOK\r\n");
+	send_command_until("AT+JOIN=1:0:6:1\r", "AT_PARAM_ERROR");
+	send_command_until("AT+JOIN=0:0:7:2\r", "\r\nOK\r\n");
+	send_command_until("AT+JOIN=?\r", "AT+JOIN=1:0:7:2");
+	send_command_until("AT+JOIN\r", "+EVT:JOINED");
+
+	zassert_equal(received_join_config.activation, RZI_LORAWAN_ACTIVATION_OTAA);
+	zassert_false(received_join_config.channel_mask_set);
+	zassert_mem_equal(received_join_config.otaa.dev_eui, expected_dev_eui,
+			  sizeof(expected_dev_eui));
+	zassert_mem_equal(received_join_config.otaa.join_eui, expected_join_eui,
+			  sizeof(expected_join_eui));
+	zassert_mem_equal(received_join_config.otaa.application_key, expected_app_key,
+			  sizeof(expected_app_key));
+	zassert_mem_equal(received_join_config.otaa.network_key, expected_app_key,
+			  sizeof(expected_app_key));
+
+	send_command_until("AT+NJS=?\r", "AT+NJS=1");
+	send_command_until("AT+CFM=1\r", "\r\nOK\r\n");
+	send_command_until("AT+SEND=12:1234\r", "+EVT:SEND_CONFIRMED_OK");
+	send_command_until("AT+JOIN=0\r", "\r\nOK\r\n");
+	send_command_until("AT+SEND=12:1234\r", "AT_NO_NETWORK_JOINED");
+	send_command_until("AT+JOIN\r", "+EVT:JOINED");
+	zassert_equal(received_port, 12);
+	zassert_equal(received_size, 2);
+	zassert_equal(received_message_type, RZI_LORAWAN_MSG_CONFIRMED);
+	zassert_equal(received_payload[0], 0x12);
+	zassert_equal(received_payload[1], 0x34);
+
+	{
+		const struct rzi_lorawan_backend_event downlink = {
+			.type = RZI_LORAWAN_BACKEND_DOWNLINK,
+			.downlink.port = 3,
+			.downlink.size = 2,
+			.downlink.rssi_dbm = -70,
+			.downlink.snr_quarter_db = 32,
+			.downlink.data = {0xab, 0xcd},
+		};
+
+		reset_output();
+		fake_sink(&downlink);
+		zassert_ok(k_sem_take(&output_ready, K_SECONDS(1)));
+		k_mutex_lock(&output_lock, K_FOREVER);
+		zassert_not_null(strstr(output, "+EVT:RX_1:-70:8:UNICAST:3:ABCD"));
+		k_mutex_unlock(&output_lock);
+	}
+	send_command_until("AT+RECV=?\r", "AT+RECV=3:ABCD");
+	send_command_until("AT+RECV=?\r", "AT+RECV=");
+}
+
+ZTEST_SUITE(rzi_at_lorawan_command, NULL, setup, NULL, NULL, NULL);

@@ -1,0 +1,15 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 RAKwireless
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/*
+ * Debug logs use the RAK19007 USB-UART (LPUART1, PA2/PA3). This overlay
+ * applies only to the AT sample.
+ */
+/ {
+	chosen {
+		zephyr,console = &lpuart1;
+		zephyr,shell-uart = &lpuart1;
+	};
+};

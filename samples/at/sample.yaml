@@ -1,0 +1,26 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 RAKwireless
+# SPDX-License-Identifier: Apache-2.0
+sample:
+  name: RZI AT
+  description: >
+    RAK RUI3-compatible AT command interface over USB CDC UART, with the
+    LoRaWAN, P2P and radio-test command packages
+tests:
+  sample.rzi.at:
+    sysbuild: true
+    build_only: true
+    tags:
+      - rzi
+      - lorawan
+      - lora
+      - at
+    platform_allow:
+      - rak4631/nrf52840/rzi
+      - rak3172/stm32wle5xx/rzi
+      - rak3372_f/stm32wle5xx
+      - rak3362/nrf54l15/cpuapp
+    integration_platforms:
+      - rak4631/nrf52840/rzi
+      - rak3172/stm32wle5xx/rzi
+      - rak3372_f/stm32wle5xx
+      - rak3362/nrf54l15/cpuapp

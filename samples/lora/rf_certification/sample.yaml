@@ -1,0 +1,32 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 RAKwireless
+# SPDX-License-Identifier: Apache-2.0
+
+sample:
+  name: RZI LoRa RF certification
+  description: >
+    Step through the ETSI, FCC or ARIB LoRa and FSK transmit configurations
+    used for radio certification, through the RZI raw LoRa API
+common:
+  sysbuild: true
+  build_only: true
+  tags:
+    - rzi
+    - lora
+  platform_allow:
+    - rak4631/nrf52840/rzi
+    - rak3172/stm32wle5xx/rzi
+    - rak3362/nrf54l15/cpuapp
+  integration_platforms:
+    - rak4631/nrf52840/rzi
+    - rak3172/stm32wle5xx/rzi
+    - rak3362/nrf54l15/cpuapp
+tests:
+  sample.rzi.lora.rf_certification.etsi:
+    extra_configs:
+      - CONFIG_APP_RF_CERT_REGION_ETSI=y
+  sample.rzi.lora.rf_certification.fcc:
+    extra_configs:
+      - CONFIG_APP_RF_CERT_REGION_FCC=y
+  sample.rzi.lora.rf_certification.arib:
+    extra_configs:
+      - CONFIG_APP_RF_CERT_REGION_ARIB=y

@@ -1,0 +1,170 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 RAKwireless
+# SPDX-License-Identifier: Apache-2.0
+name: setup-workspace
+description: >-
+  Create a west workspace around the checked-out RZI module: fetch the Zephyr
+  and USP revisions pinned in rzi/west.yml, apply the RZI backend patches, and
+  mount RZI as an extra Zephyr module. The GitHub workspace directory becomes
+  the west workspace topdir.
+runs:
+  using: composite
+  steps:
+    - name: Cache Python downloads
+      uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+      continue-on-error: true
+      with:
+        path: ~/.cache/pip
+        # All callers select Python 3.12. Dependencies are pinned by west.yml;
+        # separate job keys let compliance and build tools populate their caches.
+        key: pip-v1-${{ runner.os }}-${{ runner.arch }}-py3.12-${{ github.job }}-${{ hashFiles('rzi/west.yml') }}
+        restore-keys: |
+          pip-v1-${{ runner.os }}-${{ runner.arch }}-py3.12-${{ github.job }}-
+
+    - name: Install west
+      shell: bash
+      run: |
+        set -eux
+        if ! python3 -m pip install --upgrade "west==1.5.0"; then
+          python3 -m pip install --upgrade --break-system-packages "west==1.5.0"
+        fi
+        echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
+
+    - name: Cache the west workspace
+      uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+      continue-on-error: true
+      with:
+        path: |
+          ${{ github.workspace }}/zephyr
+          ${{ github.workspace }}/modules
+          ${{ github.workspace }}/bootloader
+          ${{ github.workspace }}/tools
+          ${{ github.workspace }}/modules/usp_zephyr
+        key: west-blobless-${{ hashFiles('rzi/west.yml') }}
+        restore-keys: west-blobless-
+
+    - name: Generate the CI manifest
+      shell: bash
+      run: |
+        set -eux
+        mkdir -p "${GITHUB_WORKSPACE}/manifest"
+        python3 - <<'PY'
+        import os
+        import pathlib
+
+        import yaml
+
+        root = pathlib.Path(os.environ["GITHUB_WORKSPACE"])
+        projects = yaml.safe_load((root / "rzi/west.yml").read_text())["manifest"]["projects"]
+        if not any(project["name"] == "zephyr" for project in projects):
+            raise SystemExit("zephyr revision missing from rzi/west.yml")
+        manifest = {"manifest": {"version": "0.13", "projects": projects}}
+        (root / "manifest/west.yml").write_text(yaml.safe_dump(manifest, sort_keys=False))
+        PY
+        cat "${GITHUB_WORKSPACE}/manifest/west.yml"
+
+    - name: Fetch the pinned dependencies
+      shell: bash
+      run: |
+        set -eux
+        git -C "${GITHUB_WORKSPACE}/manifest" init -q
+        git -C "${GITHUB_WORKSPACE}/manifest" add west.yml
+        git -C "${GITHUB_WORKSPACE}/manifest" \
+          -c user.name=rzi-ci -c user.email=ci@localhost commit -qm "CI manifest"
+        cd "${GITHUB_WORKSPACE}"
+        # A cache hit restores usp_zephyr with the previous run's patches
+        # still in the worktree. west update will not discard those edits.
+        if [[ -d modules/usp_zephyr/.git ]]; then
+          git -C modules/usp_zephyr reset --hard
+          git -C modules/usp_zephyr clean -fd
+        fi
+        west init -l manifest
+        # Blobless narrow fetch. clone-depth 1 plus a pinned SHA is rejected
+        # by git as an unadvertised object, which fails this step immediately.
+        west update --narrow -o=--filter=blob:none
+
+    - name: Apply the RZI Zephyr patches
+      shell: bash
+      working-directory: zephyr
+      run: |
+        set -eux
+        rev="$(python3 - <<'PY'
+        import os
+        import pathlib
+
+        import yaml
+
+        root = pathlib.Path(os.environ["GITHUB_WORKSPACE"])
+        projects = yaml.safe_load((root / "rzi/west.yml").read_text())["manifest"]["projects"]
+        for project in projects:
+            if project["name"] == "zephyr":
+                print(project["revision"].split()[0])
+                raise SystemExit(0)
+        raise SystemExit("zephyr revision missing from rzi/west.yml")
+        PY
+        )"
+        git reset --hard "${rev}"
+        git clean -fd
+        for patch in "${GITHUB_WORKSPACE}"/rzi/zephyr/patches/zephyr/*.patch; do
+          git apply -v "${patch}"
+        done
+
+    - name: Apply the RZI backend patches
+      shell: bash
+      working-directory: modules/usp_zephyr
+      run: |
+        set -eux
+        rev="$(python3 - <<'PY'
+        import os
+        import pathlib
+
+        import yaml
+
+        root = pathlib.Path(os.environ["GITHUB_WORKSPACE"])
+        projects = yaml.safe_load((root / "rzi/west.yml").read_text())["manifest"]["projects"]
+        for project in projects:
+            if project["name"] == "usp_zephyr":
+                print(project["revision"])
+                raise SystemExit(0)
+        raise SystemExit("usp_zephyr revision missing from rzi/west.yml")
+        PY
+        )"
+        # Apply onto the pinned revision, not whatever the cache left behind.
+        # Skipping an "already applied" patch hid a worktree whose context no
+        # longer matched the next patch.
+        git reset --hard "${rev}"
+        git clean -fd
+        for patch in "${GITHUB_WORKSPACE}"/rzi/zephyr/patches/usp_zephyr/*.patch; do
+          git apply -v "${patch}"
+        done
+
+    - name: Apply the RZI USP patches
+      shell: bash
+      working-directory: modules/lib/usp
+      run: |
+        set -eux
+        rev="$(python3 - <<'PY'
+        import os
+        import pathlib
+
+        import yaml
+
+        root = pathlib.Path(os.environ["GITHUB_WORKSPACE"])
+        projects = yaml.safe_load((root / "rzi/west.yml").read_text())["manifest"]["projects"]
+        for project in projects:
+            if project["name"] == "usp":
+                print(project["revision"])
+                raise SystemExit(0)
+        raise SystemExit("usp revision missing from rzi/west.yml")
+        PY
+        )"
+        # Same cache hazard as usp_zephyr: a restored tree may already contain
+        # the previous run's patch, so reset before applying.
+        git reset --hard "${rev}"
+        git clean -fd
+        for patch in "${GITHUB_WORKSPACE}"/rzi/zephyr/patches/usp/*.patch; do
+          git apply -v "${patch}"
+        done
+
+    - name: Mount RZI as an extra module
+      shell: bash
+      run: echo "ZEPHYR_EXTRA_MODULES=${GITHUB_WORKSPACE}/rzi" >> "${GITHUB_ENV}"

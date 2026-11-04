@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 RAKwireless
+# SPDX-License-Identifier: Apache-2.0
+# Owners must have explicit write access to the destination repository.
+# DanielCao0 has a PR-only exception in the separate review ruleset.
+# CI and baseline branch protection still apply to this account.
+* @DanielCao0

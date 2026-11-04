@@ -1,0 +1,39 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 RAKwireless
+# SPDX-License-Identifier: Apache-2.0
+
+sample:
+  name: RZI LoRa ping-pong
+  description: >
+    Exchange PING and PONG frames between two boards through the RZI raw
+    LoRa API
+tests:
+  sample.rzi.lora.ping_pong.subordinate:
+    sysbuild: true
+    build_only: true
+    tags:
+      - rzi
+      - lora
+    platform_allow:
+      - rak4631/nrf52840/rzi
+      - rak3172/stm32wle5xx/rzi
+      - rak3362/nrf54l15/cpuapp
+    integration_platforms:
+      - rak4631/nrf52840/rzi
+      - rak3172/stm32wle5xx/rzi
+      - rak3362/nrf54l15/cpuapp
+  sample.rzi.lora.ping_pong.manager:
+    sysbuild: true
+    build_only: true
+    extra_configs:
+      - CONFIG_APP_PING_PONG_MANAGER=y
+    tags:
+      - rzi
+      - lora
+    platform_allow:
+      - rak4631/nrf52840/rzi
+      - rak3172/stm32wle5xx/rzi
+      - rak3362/nrf54l15/cpuapp
+    integration_platforms:
+      - rak4631/nrf52840/rzi
+      - rak3172/stm32wle5xx/rzi
+      - rak3362/nrf54l15/cpuapp

@@ -1,0 +1,23 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 RAKwireless
+# SPDX-License-Identifier: Apache-2.0
+
+sample:
+  name: RZI LoRa continuous wave
+  description: >
+    Transmit an unmodulated carrier through the RZI raw LoRa API for RF
+    measurements
+tests:
+  sample.rzi.lora.tx_cw:
+    sysbuild: true
+    build_only: true
+    tags:
+      - rzi
+      - lora
+    platform_allow:
+      - rak4631/nrf52840/rzi
+      - rak3172/stm32wle5xx/rzi
+      - rak3362/nrf54l15/cpuapp
+    integration_platforms:
+      - rak4631/nrf52840/rzi
+      - rak3172/stm32wle5xx/rzi
+      - rak3362/nrf54l15/cpuapp

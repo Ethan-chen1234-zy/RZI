@@ -1,0 +1,33 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 RAKwireless
+# SPDX-License-Identifier: Apache-2.0
+
+config RZI_USP
+	bool
+	select LORA_BASICS_MODEM_DRIVERS
+	select USP
+	select USP_LORA_BASICS_MODEM
+	select USP_MAIN_THREAD
+	select USP_THREADS_MUTEXES
+	help
+	  Shared Semtech USP platform layer. RZI owns the USP engine: it
+	  initializes the platform, the radio access controller and LoRa Basics
+	  Modem once, serializes API calls, and routes modem events. Selected
+	  by the USP LoRaWAN and raw LoRa backends.
+
+# Sourced before the USP Kconfig, so these are the first choice defaults
+# and win over LOG_LEVEL_DEFAULT. LBM traces use the USP "lorawan" module.
+if LOG && USP
+
+choice USP_LOG_LEVEL_CHOICE
+	default USP_LOG_LEVEL_OFF
+endchoice
+
+choice LORA_BASICS_MODEM_LOG_LEVEL_CHOICE
+	default LORA_BASICS_MODEM_LOG_LEVEL_OFF
+endchoice
+
+choice LORA_BASICS_MODEM_DRIVERS_LOG_LEVEL_CHOICE
+	default LORA_BASICS_MODEM_DRIVERS_LOG_LEVEL_OFF
+endchoice
+
+endif

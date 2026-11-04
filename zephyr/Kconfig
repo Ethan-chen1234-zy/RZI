@@ -1,0 +1,26 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 RAKwireless
+# SPDX-License-Identifier: Apache-2.0
+
+menuconfig RZI
+	bool "RAK RZI SDK"
+	help
+	  Enable the RAK Zephyr Interface SDK. Individual RZI services are
+	  selected below.
+
+if RZI
+
+# Shared foundations first: later services depend on these symbols.
+rsource "Kconfig.storage"
+rsource "Kconfig.boot"
+
+# Radio and command services, then power.
+rsource "Kconfig.usp"
+rsource "Kconfig.lorawan"
+rsource "Kconfig.lora"
+rsource "Kconfig.at"
+rsource "Kconfig.power"
+
+# LLEXT exports table
+rsource "Kconfig.llext_exports"
+
+endif

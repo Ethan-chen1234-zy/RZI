@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 RAKwireless
+# SPDX-License-Identifier: Apache-2.0
+
+cmake_minimum_required(VERSION 3.20.0)
+find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
+project(rzi_lorawan_service)
+
+target_include_directories(app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../../src/lorawan)
+target_sources(app PRIVATE src/main.c src/fake_backend.c)
+
+if(CONFIG_RZI_POWER AND CONFIG_RZI_POWER_AUTO_SERVICE_LOCK)
+  zephyr_link_libraries(-Wl,--wrap=rzi_power_lock_get)
+endif()

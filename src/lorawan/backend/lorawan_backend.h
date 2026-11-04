@@ -1,0 +1,202 @@
+/* SPDX-FileCopyrightText: Copyright (c) 2026 RAKwireless */
+/* SPDX-License-Identifier: Apache-2.0 */
+/**
+ * @file
+ * @brief Internal backend contract for the RZI LoRaWAN service.
+ */
+#ifndef RZI_LORAWAN_BACKEND_H
+#define RZI_LORAWAN_BACKEND_H
+
+#include "../lorawan_priv.h"
+
+#include "ops/lorawan_certification_ops.h"
+#include "ops/lorawan_class_b_ops.h"
+#include "ops/lorawan_fuota_ops.h"
+#include "ops/lorawan_mac_ops.h"
+#include "ops/lorawan_multicast_ops.h"
+#include "ops/lorawan_network_ops.h"
+#include "ops/lorawan_session_ops.h"
+
+/** Events published by a backend and consumed by the service dispatcher. */
+enum rzi_lorawan_backend_event_type {
+	/** Backend startup completed. */
+	RZI_LORAWAN_BACKEND_READY,
+	/** Network activation succeeded. */
+	RZI_LORAWAN_BACKEND_JOINED,
+	/** Network activation failed. */
+	RZI_LORAWAN_BACKEND_JOIN_FAILED,
+	/** An accepted uplink completed. */
+	RZI_LORAWAN_BACKEND_TX_DONE,
+	/** An application downlink was received. */
+	RZI_LORAWAN_BACKEND_DOWNLINK,
+	/** A backend error occurred outside another completion event. */
+	RZI_LORAWAN_BACKEND_ERROR,
+	/** Backend explicitly reports a service state transition. */
+	RZI_LORAWAN_BACKEND_STATE_CHANGED,
+	/** Optional FUOTA session event consumed by the FUOTA service. */
+	RZI_LORAWAN_BACKEND_FUOTA,
+	/** LinkCheckAns received or the request timed out. */
+	RZI_LORAWAN_BACKEND_LINK_CHECK,
+	/** DeviceTimeAns received or the request timed out. */
+	RZI_LORAWAN_BACKEND_DEVICE_TIME,
+	/** Class B acquisition state changed. */
+	RZI_LORAWAN_BACKEND_CLASS_B,
+	/** Regional duty cycle started or stopped delaying uplinks. */
+	RZI_LORAWAN_BACKEND_DUTY_CYCLE,
+	/** Uplinks went unanswered; carries RZI_LORAWAN_EVENT_NO_RX_THRESHOLD_* reasons. */
+	RZI_LORAWAN_BACKEND_NO_DOWNLINK,
+};
+
+/** FUOTA session kind carried by RZI_LORAWAN_BACKEND_FUOTA. */
+enum rzi_lorawan_backend_fuota_kind {
+	/** Application-layer or MAC time has been synchronized. */
+	RZI_LORAWAN_BACKEND_FUOTA_CLOCK_SYNCED,
+	/** A multicast fragment session has started. */
+	RZI_LORAWAN_BACKEND_FUOTA_SESSION_STARTED,
+	/** A multicast session has ended. */
+	RZI_LORAWAN_BACKEND_FUOTA_SESSION_ENDED,
+	/** Fragment reconstruction finished. */
+	RZI_LORAWAN_BACKEND_FUOTA_TRANSFER_DONE,
+	/** Firmware Management Package requested a reboot. */
+	RZI_LORAWAN_BACKEND_FUOTA_REBOOT_REQUESTED,
+};
+
+/**
+ * @brief Value-copied event passed from a backend to the service.
+ *
+ * The event sink copies the complete object before it returns. A backend may
+ * therefore allocate this object on its stack.
+ */
+struct rzi_lorawan_backend_event {
+	/** Selects the active union member. */
+	enum rzi_lorawan_backend_event_type type;
+	/**
+	 * Negative RZI_ERR_* for ERROR, JOIN_FAILED, DEVICE_TIME, and TX_DONE.
+	 * ERROR with -RZI_ERR_OVERFLOW means the stack dropped events.
+	 */
+	int error;
+	union {
+		/** Uplink result for RZI_LORAWAN_BACKEND_TX_DONE. */
+		enum rzi_lorawan_tx_status tx_status;
+		/** State for RZI_LORAWAN_BACKEND_STATE_CHANGED. */
+		enum rzi_lorawan_state state;
+		/** Value-owned downlink metadata and payload. */
+		struct {
+			/** LoRaWAN application port. */
+			uint8_t port;
+			/** Number of valid bytes in data. */
+			uint8_t size;
+			/** Received signal strength in dBm. */
+			int16_t rssi_dbm;
+			/** Signal-to-noise ratio in quarter-dB units. */
+			int8_t snr_quarter_db;
+			/** RZI_LORAWAN_DOWNLINK_* flags. */
+			uint32_t flags;
+			/** Receive window. */
+			enum rzi_lorawan_rx_window window;
+			/** Multicast group when flags has RZI_LORAWAN_DOWNLINK_MULTICAST. */
+			uint8_t multicast_group;
+			/** Downlink data rate. */
+			enum rzi_lorawan_data_rate data_rate;
+			/** Downlink frequency in hertz, or zero when unknown. */
+			uint32_t frequency_hz;
+			/** Payload copied into the service event queue. */
+			uint8_t data[RZI_LORAWAN_MAX_PAYLOAD];
+		} downlink;
+		/** FUOTA session details for RZI_LORAWAN_BACKEND_FUOTA. */
+		struct {
+			/** Selects the FUOTA session kind. */
+			enum rzi_lorawan_backend_fuota_kind kind;
+			/** True when a transfer completed successfully. */
+			bool successful;
+			/** Reconstructed image size in bytes, or zero if unknown. */
+			uint32_t image_size;
+		} fuota;
+		/** Link-check result for RZI_LORAWAN_BACKEND_LINK_CHECK. */
+		struct rzi_lorawan_link_check_result link_check;
+		/** Class B state for RZI_LORAWAN_BACKEND_CLASS_B. */
+		enum rzi_lorawan_class_b_state class_b;
+		/** True while the duty cycle delays uplinks, for DUTY_CYCLE. */
+		bool duty_cycle_limited;
+		/** RZI_LORAWAN_EVENT_NO_RX_THRESHOLD_* reasons for NO_DOWNLINK_THRESHOLD. */
+		uint8_t no_downlink;
+	};
+};
+
+/**
+ * @brief Publish one backend event to the RZI service.
+ *
+ * The sink is non-blocking and may be called from ISR or thread context. It
+ * copies event synchronously and never retains the pointer.
+ */
+typedef void (*rzi_lorawan_event_sink_t)(const struct rzi_lorawan_backend_event *event);
+
+/**
+ * @brief Required lifecycle, uplink, and state operations.
+ *
+ * Operation arguments must be consumed or copied before returning. A zero
+ * return from join() or send() means accepted; completion is asynchronous
+ * through the event sink. Only get_class() may be NULL.
+ *
+ * The contract follows LoRa Basics Modem semantics; other backends emulate
+ * them. In particular join() starts a sequence the backend keeps retrying,
+ * publishing JOIN_FAILED per failed attempt, until JOINED or leave(). The
+ * stack owns runtime state such as busy and the current data rate; the
+ * service does not shadow it.
+ */
+struct rzi_lorawan_base_ops {
+	/** Start the backend and retain the event sink for its lifetime. */
+	int (*start)(enum rzi_lorawan_region region, bool join_backoff_bypass,
+		     rzi_lorawan_event_sink_t event_sink);
+	/** Request network activation using the supplied copied credentials. */
+	int (*join)(const struct rzi_lorawan_join_config *config);
+	/** Leave or cancel the active network session. */
+	int (*leave)(void);
+	/** Request an application uplink and copy data before returning. */
+	int (*send)(uint8_t port, const uint8_t *data, size_t size,
+		    enum rzi_lorawan_message_type type);
+	/** Select a device class supported by capabilities. */
+	int (*set_class)(enum rzi_lorawan_class device_class);
+	/** Read the current device class from the stack, or NULL. */
+	int (*get_class)(enum rzi_lorawan_class *device_class);
+	/** Store the current network-session state in joined. */
+	int (*is_joined)(bool *joined);
+	/** Store whether the stack is still processing an uplink. */
+	int (*is_busy)(bool *busy);
+};
+
+/**
+ * @brief Operations supplied by exactly one selected LoRaWAN backend.
+ *
+ * A NULL optional ops pointer means the whole group is unsupported. A NULL
+ * member inside an optional table returns -RZI_ERR_NOT_SUPPORTED. Each
+ * optional table must be present exactly when its RZI_LORAWAN_CAP_* bit is
+ * set; rzi_lorawan_init() asserts this.
+ */
+struct rzi_lorawan_backend_api {
+	/** Bitwise OR of enum rzi_lorawan_capability values. */
+	uint32_t capabilities;
+	/** Base operations; get_class may be NULL. */
+	struct rzi_lorawan_base_ops base;
+	/** MAC-parameter table, or NULL. */
+	const struct rzi_lorawan_network_ops *network;
+	/** Class B table, or NULL. */
+	const struct rzi_lorawan_class_b_ops *class_b;
+	/** Session-identity table, or NULL. */
+	const struct rzi_lorawan_session_ops *session;
+	/** LinkCheckReq / DeviceTimeReq table, or NULL. */
+	const struct rzi_lorawan_mac_ops *mac;
+	/** Multicast-session table, or NULL. */
+	const struct rzi_lorawan_multicast_ops *multicast;
+	/** Certification-mode table, or NULL. */
+	const struct rzi_lorawan_certification_ops *certification;
+#ifdef CONFIG_RZI_LORAWAN_FUOTA
+	/** FUOTA image-access table, or NULL. */
+	const struct rzi_lorawan_fuota_ops *fuota;
+#endif
+};
+
+/** Backend implementation selected by the RZI Kconfig choice. */
+extern const struct rzi_lorawan_backend_api rzi_lorawan_backend;
+
+#endif /* RZI_LORAWAN_BACKEND_H */

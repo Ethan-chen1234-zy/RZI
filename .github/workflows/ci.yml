@@ -1,0 +1,536 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 RAKwireless
+# SPDX-License-Identifier: Apache-2.0
+#
+# RZI continuous integration, aligned with Zephyr's compliance workflow
+# and the example-application twister gate: check_compliance.py, DCO on
+# pull requests, twister --integration, plus REUSE, public-header, Doxygen,
+# and SPDX 3 / CycloneDX SBOM checks. Releases: release.yml.
+#
+# Version pins and local reproduction steps are documented in doc/ci.md.
+
+name: CI
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main, 'release/**']
+  pull_request:
+  merge_group:
+    types: [checks_requested]
+  workflow_dispatch:
+  workflow_call:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}-ci
+  cancel-in-progress: true
+
+env:
+  # The Zephyr and USP revisions come from west.yml. The SDK must match
+  # that Zephyr revision.
+  ZEPHYR_SDK_VERSION: "1.0.1"
+  CLANG_FORMAT_VERSION: "23.1.0"
+  DOXYGEN_VERSION: "1.13.2"
+
+jobs:
+  workflows:
+    name: Workflow validation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check out RZI
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - name: Install verified actionlint
+        env:
+          ACTIONLINT_VERSION: '1.7.11'
+          ACTIONLINT_SHA256: 900919a84f2229bac68ca9cd4103ea297abc35e9689ebb842c6e34a3d1b01b0a
+        run: |
+          archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl --fail --silent --show-error --location \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${archive}" \
+            --output "$RUNNER_TEMP/$archive"
+          printf '%s  %s\n' "$ACTIONLINT_SHA256" "$RUNNER_TEMP/$archive" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" actionlint
+
+      - name: Validate workflow syntax and expressions
+        run: '"$RUNNER_TEMP/actionlint" -shellcheck= .github/workflows/*.yml'
+
+  commits:
+    name: Commit policy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check out the integration result and original commits
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          path: rzi
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check commit topology, messages, and DCO
+        working-directory: rzi
+        run: python3 tools/ci/check-commits.py --event "$GITHUB_EVENT_PATH"
+
+      - name: Test commit-policy regressions
+        working-directory: rzi
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 -m unittest discover -s tools/tests -p 'test_*.py' -v
+
+  compliance:
+    name: Compliance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out RZI
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          path: rzi
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+
+      - name: Set up the west workspace
+        uses: ./rzi/.github/actions/setup-workspace
+
+      - name: Install Zephyr compliance requirements
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libmagic1
+          python3 -m pip install \
+            -r zephyr/scripts/requirements-actions.txt \
+            --require-hashes
+
+      - name: Install clang-format
+        run: python3 -m pip install "clang-format==${CLANG_FORMAT_VERSION}"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: "lts/*"
+          cache: npm
+          cache-dependency-path: zephyr/scripts/ci/package-lock.json
+
+      - name: Install the devicetree linter
+        run: npm --prefix zephyr/scripts/ci ci
+
+      - name: Coding style
+        working-directory: rzi
+        run: tools/ci/check-style.sh --no-checkpatch
+
+      - name: Zephyr compliance
+        working-directory: rzi
+        env:
+          ZEPHYR_BASE: ${{ github.workspace }}/zephyr
+        run: |
+          range="$(python3 tools/ci/check-commits.py --event "$GITHUB_EVENT_PATH" --range-only)"
+          tools/ci/check-compliance.sh "${range}"
+
+      - name: Public ABI must not leak backend symbols
+        run: |
+          if grep -rnE '\b(smtc_[a-z]|LoRaMac|LmHandler|Mcps|Mlme|ral_[a-z]|sx126|sx127|lr11)' \
+              rzi/include/rzi/; then
+            echo "::error::private backend symbols leaked into include/rzi/"
+            exit 1
+          fi
+
+      - name: Source must be ASCII
+        run: |
+          if LC_ALL=C grep -rnP '[^\x00-\x7F]' rzi/src rzi/include; then
+            echo "::error::non-ASCII text in source"
+            exit 1
+          fi
+
+      - name: REUSE (license and copyright on every file)
+        # Run inside the repository. `reuse --root rzi` from the workspace
+        # parent treats rzi as a subdirectory of a non-repository and skips
+        # Git ignore, so the ruff cache written by compliance fails the lint.
+        working-directory: rzi
+        run: reuse lint
+
+      - name: Version strings stay in sync
+        run: |
+          version="$(grep -oP 'RZI_VERSION_STRING "\K[^"]+' rzi/include/rzi/version.h)"
+          grep -q "PROJECT_NUMBER         = ${version}" rzi/doc/Doxyfile
+          grep -q "cpe:2.3:a:rakwireless:rzi:${version}:" rzi/zephyr/module.yml
+          grep -q "pkg:github/RAKWireless/RZI@v${version}$" rzi/zephyr/module.yml
+
+  twister:
+    name: Twister (native_sim)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      # native_sim builds use the host compiler; declaring the host toolchain
+      # skips the Zephyr SDK lookup this job does not need.
+      ZEPHYR_TOOLCHAIN_VARIANT: host
+    steps:
+      - name: Check out RZI
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          path: rzi
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+
+      - name: Set up the west workspace
+        uses: ./rzi/.github/actions/setup-workspace
+
+      - name: Install host build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            device-tree-compiler gperf gcc-multilib g++-multilib
+
+      - name: Install the Zephyr Python requirements
+        run: |
+          python3 -m pip install \
+            -r zephyr/scripts/requirements-base.txt \
+            -r zephyr/scripts/requirements-build-test.txt \
+            -r zephyr/scripts/requirements-run-test.txt
+
+      - name: Run the test suites
+        run: |
+          set -o pipefail
+          if ! west twister -T "${GITHUB_WORKSPACE}/rzi/tests" --inline-logs -v --integration -j "$(nproc)" 2>&1 | tee twister-console.log; then
+            grep -aE "ERROR|error:|FAILED" twister-console.log | head -40 | while IFS= read -r line; do
+              echo "::error::${line}"
+            done
+            exit 1
+          fi
+
+      - name: Upload the twister results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: twister-results
+          path: |
+            twister-out/twister*.xml
+            twister-out/twister.json
+            twister-out/twister.log
+            twister-console.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload the twister report on failure
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: twister-report
+          path: twister-out/
+          if-no-files-found: ignore
+
+  sample-builds:
+    name: Samples (shard ${{ matrix.shard }}/4)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - name: Check out RZI
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          path: rzi
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+
+      - name: Set up the west workspace
+        uses: ./rzi/.github/actions/setup-workspace
+
+      - name: Install host build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends device-tree-compiler gperf
+
+      - name: Install the Zephyr Python requirements
+        run: |
+          python3 -m pip install \
+            -r zephyr/scripts/requirements-base.txt \
+            -r zephyr/scripts/requirements-build-test.txt \
+            -r zephyr/scripts/requirements-run-test.txt \
+            imgtool
+
+      - name: Set up the Zephyr SDK
+        uses: ./rzi/.github/actions/setup-sdk
+        with:
+          version: ${{ env.ZEPHYR_SDK_VERSION }}
+
+      - name: Build the samples
+        run: |
+          west twister -T "${GITHUB_WORKSPACE}/rzi/samples" --inline-logs -v \
+            --integration --subset "${{ matrix.shard }}/4" -j "$(nproc)"
+
+      - name: Upload the sample results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: twister-samples-results-${{ matrix.shard }}
+          path: |
+            twister-out/twister*.xml
+            twister-out/twister.json
+            twister-out/twister.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload the twister report on failure
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: twister-samples-report-${{ matrix.shard }}
+          path: twister-out/
+          if-no-files-found: ignore
+
+  firmware-sbom:
+    name: Firmware SBOM
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out RZI
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          path: rzi
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+
+      - name: Set up the west workspace
+        uses: ./rzi/.github/actions/setup-workspace
+
+      - name: Install host build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends device-tree-compiler gperf
+
+      - name: Install the Zephyr Python requirements
+        run: |
+          python3 -m pip install \
+            -r zephyr/scripts/requirements-base.txt \
+            -r zephyr/scripts/requirements-build-test.txt \
+            -r zephyr/scripts/requirements-run-test.txt \
+            imgtool
+
+      - name: Set up the Zephyr SDK
+        uses: ./rzi/.github/actions/setup-sdk
+        with:
+          version: ${{ env.ZEPHYR_SDK_VERSION }}
+
+      - name: Build a reference image with build metadata
+        run: |
+          west build -b rak4631/nrf52840/rzi --sysbuild rzi/samples/at -d build-sbom \
+            -- -DCONFIG_BUILD_OUTPUT_META=y -Dmcuboot_CONFIG_BUILD_OUTPUT_META=y
+
+      - name: Firmware SBOM (SPDX 3)
+        run: |
+          python3 rzi/tools/sbom/generate-firmware-sbom.py build-sbom
+          for image in build-sbom/spdx/*/; do
+            args=()
+            for doc in "${image}"*.jsonld; do args+=(-j "${doc}"); done
+            spdx3-validate -q "${args[@]}"
+            python3 rzi/tools/sbom/check-sbom.py --strict "${image}"*.jsonld
+          done
+
+      - name: Upload the firmware SBOM
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: firmware-sbom-at-rak4631_nrf52840_rzi
+          path: build-sbom/spdx/
+
+  # Preserve the existing required-check name for branch protection.
+  samples:
+    name: Samples (product boards)
+    needs: [sample-builds, firmware-sbom]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require all sample shards and the firmware SBOM
+        env:
+          BUILDS_RESULT: ${{ needs.sample-builds.result }}
+          SBOM_RESULT: ${{ needs.firmware-sbom.result }}
+        run: |
+          echo "Sample shards: ${BUILDS_RESULT}; firmware SBOM: ${SBOM_RESULT}"
+          [[ "${BUILDS_RESULT}" == success && "${SBOM_RESULT}" == success ]]
+
+  headers:
+    name: Public headers (C and C++)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      ZEPHYR_TOOLCHAIN_VARIANT: host
+    steps:
+      - name: Check out RZI
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          path: rzi
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+
+      - name: Set up the west workspace
+        uses: ./rzi/.github/actions/setup-workspace
+
+      - name: Install host build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends device-tree-compiler gperf
+
+      - name: Install the Zephyr Python requirements
+        run: |
+          python3 -m pip install \
+            -r zephyr/scripts/requirements-base.txt \
+            -r zephyr/scripts/requirements-build-test.txt \
+            -r zephyr/scripts/requirements-run-test.txt
+
+      - name: Configure a reference build
+        run: |
+          set -o pipefail
+          if ! west build -b native_sim/native/64 \
+              "${GITHUB_WORKSPACE}/rzi/tests/lorawan/service" \
+              -d build-headers --pristine=always 2>&1 | tee build-headers.log; then
+            tail -30 build-headers.log | while IFS= read -r line; do
+              echo "::error::${line}"
+            done
+            exit 1
+          fi
+
+      - name: Compile every public header as C and C++
+        run: python3 rzi/tools/ci/check-public-headers.py build-headers
+
+  doc:
+    name: Documentation (Doxygen)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out RZI
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          path: rzi
+          persist-credentials: false
+
+      - name: Cache doxygen
+        id: doxygen
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: doxygen-${{ env.DOXYGEN_VERSION }}
+          key: doxygen-${{ env.DOXYGEN_VERSION }}-linux-x86_64
+
+      - name: Install doxygen
+        if: steps.doxygen.outputs.cache-hit != 'true'
+        run: |
+          wget -q "https://github.com/doxygen/doxygen/releases/download/Release_$(echo "${DOXYGEN_VERSION}" | tr . _)/doxygen-${DOXYGEN_VERSION}.linux.bin.tar.gz"
+          mkdir -p "doxygen-${DOXYGEN_VERSION}"
+          tar -xf "doxygen-${DOXYGEN_VERSION}.linux.bin.tar.gz" -C "doxygen-${DOXYGEN_VERSION}"
+
+      - name: Locate the doxygen binary
+        run: |
+          binary="$(find "doxygen-${DOXYGEN_VERSION}" -type f -name doxygen | head -1)"
+          if [[ -z "${binary}" ]]; then
+            echo "::error::doxygen binary not found after extraction"
+            find "doxygen-${DOXYGEN_VERSION}" | head -20
+            exit 1
+          fi
+          echo "DOXYGEN_BINDIR=${GITHUB_WORKSPACE}/$(dirname "${binary}")" >> "${GITHUB_ENV}"
+          "${binary}" --version
+
+      - name: Build the documentation
+        working-directory: rzi
+        run: |
+          export PATH="${DOXYGEN_BINDIR}:${PATH}"
+          tools/docs/generate-doxygen.sh
+          if [[ -s doc/doxygen/warnings.log ]]; then
+            while IFS= read -r line; do
+              echo "::error::${line}"
+            done < doc/doxygen/warnings.log
+            exit 1
+          fi
+
+  sbom:
+    name: SBOM
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out RZI
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          path: rzi
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+
+      - name: Install the SBOM tools
+        run: |
+          python3 -m pip install pyyaml reuse spdx3-validate \
+            "cyclonedx-python-lib[json-validation]"
+
+      - name: Generate the module SBOM
+        working-directory: rzi
+        run: tools/sbom/generate-sbom.sh
+
+      - name: Validate SPDX 3, CycloneDX 1.6, and the minimum elements
+        working-directory: rzi
+        run: |
+          spdx3-validate -q -j build/sbom/rzi.spdx.jsonld
+          python3 tools/sbom/check-sbom.py --strict build/sbom/rzi.spdx.jsonld build/sbom/rzi.cdx.json
+
+      - name: Upload the module SBOM
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: ci-module-sbom
+          path: rzi/build/sbom/
+
+  required:
+    name: CI required
+    if: always()
+    needs: [workflows, commits, compliance, twister, sample-builds, firmware-sbom, samples, headers, doc, sbom]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require every validation job to succeed
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+
+          results = json.loads(os.environ["RESULTS"])
+          if not results:
+              sys.exit("Required check results are missing.")
+          failed = {name: job["result"] for name, job in results.items()
+                    if job["result"] != "success"}
+          if failed:
+              print(f"Required checks did not succeed: {failed}")
+              sys.exit(1)
+          print("Every required validation job succeeded.")
+          PY

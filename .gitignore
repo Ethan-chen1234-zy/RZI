@@ -1,0 +1,21 @@
+# Local editor and build output
+/.cache/
+/.venv/
+/compile_commands.json
+/build-*/
+/build/
+**/__pycache__/
+/.vscode/
+
+# External documentation checkout retained locally
+/doc/reqmgmt/
+# Generated Doxygen HTML (tools/docs/generate-doxygen.sh)
+/doc/doxygen/
+
+# Written by tools/ci/check-compliance.sh from the Zephyr tree, then removed
+/.checkpatch.conf
+/.gitlint
+/compliance.xml
+
+# OS residual files
+.DS_Store

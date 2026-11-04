@@ -1,0 +1,255 @@
+/* SPDX-FileCopyrightText: Copyright (c) 2026 RAKwireless */
+/* SPDX-License-Identifier: Apache-2.0 */
+/**
+ * @file
+ * @brief AT service lifecycle, input buffering, execution, and output serialization.
+ */
+
+#include <errno.h>
+#include <stdarg.h>
+#include <string.h>
+
+#include <zephyr/kernel.h>
+#include <zephyr/sys/atomic.h>
+#include <zephyr/sys/ring_buffer.h>
+
+#include <rzi/at/at.h>
+
+#include "at_priv.h"
+
+RING_BUF_DECLARE(rx_ring, CONFIG_RZI_AT_RX_BUFFER_SIZE);
+K_SEM_DEFINE(rx_ready, 0, 1);
+K_MUTEX_DEFINE(tx_lock);
+K_THREAD_STACK_DEFINE(at_stack, CONFIG_RZI_AT_THREAD_STACK_SIZE);
+
+static struct k_thread at_thread;
+static struct rzi_at_io active_io;
+static atomic_t started;
+static atomic_t rx_overflow;
+static atomic_t locked;
+static atomic_t echo_enabled = ATOMIC_INIT(IS_ENABLED(CONFIG_RZI_AT_ECHO));
+static char password[9];
+
+bool rzi_at_is_locked(void)
+{
+	return atomic_get(&locked) != 0;
+}
+
+void rzi_at_set_locked(bool enable)
+{
+	if (enable) {
+		atomic_set(&locked, 1);
+	} else {
+		atomic_clear(&locked);
+	}
+}
+
+bool rzi_at_echo_enabled(void)
+{
+	return atomic_get(&echo_enabled) != 0;
+}
+
+void rzi_at_set_echo(bool enable)
+{
+	if (enable) {
+		atomic_set(&echo_enabled, 1);
+	} else {
+		atomic_clear(&echo_enabled);
+	}
+}
+
+bool rzi_at_password_matches(const char *value)
+{
+	return value != NULL && strcmp(password, value) == 0;
+}
+
+int rzi_at_set_password(const char *value)
+{
+	size_t len;
+
+	if (value == NULL) {
+		return -RZI_ERR_INVALID;
+	}
+	len = strlen(value);
+	if (len == 0U || len > 8U) {
+		return -RZI_ERR_INVALID;
+	}
+	memcpy(password, value, len + 1U);
+	return 0;
+}
+
+const char *rzi_at_password(void)
+{
+	return password;
+}
+
+static void ignore_result(int result)
+{
+	ARG_UNUSED(result);
+}
+
+static int write_all(const char *text)
+{
+	size_t size = strlen(text);
+	int rc;
+
+	k_mutex_lock(&tx_lock, K_FOREVER);
+	rc = active_io.write((const uint8_t *)text, size, active_io.user_data);
+	k_mutex_unlock(&tx_lock);
+	return rc;
+}
+
+int rzi_at_write_raw(const char *text)
+{
+	if (!atomic_get(&started) || text == NULL) {
+		return -RZI_ERR_INVALID;
+	}
+	return write_all(text);
+}
+
+int rzi_at_respond_status(enum rzi_at_status status)
+{
+	static const char *const names[] = {
+		[RZI_AT_STATUS_OK] = "OK",
+		[RZI_AT_STATUS_ERROR] = "AT_ERROR",
+		[RZI_AT_STATUS_PARAM_ERROR] = "AT_PARAM_ERROR",
+		[RZI_AT_STATUS_BUSY_ERROR] = "AT_BUSY_ERROR",
+		[RZI_AT_STATUS_NO_NETWORK_JOINED] = "AT_NO_NETWORK_JOINED",
+		[RZI_AT_STATUS_TEST_PARAM_OVERFLOW] = "AT_TEST_PARAM_OVERFLOW",
+	};
+	char buffer[48];
+
+	if (!atomic_get(&started) || status < 0 || status >= ARRAY_SIZE(names)) {
+		return -RZI_ERR_INVALID;
+	}
+	(void)snprintk(buffer, sizeof(buffer), "\r\n%s\r\n", names[status]);
+	return write_all(buffer);
+}
+
+static int write_formatted(const char *prefix, const char *suffix, const char *format, va_list args)
+{
+	char buffer[CONFIG_RZI_AT_TX_BUFFER_SIZE];
+	int head;
+	int body;
+
+	head = snprintk(buffer, sizeof(buffer), "%s", prefix);
+	if (head < 0 || head >= sizeof(buffer)) {
+		return -RZI_ERR_OVERFLOW;
+	}
+	body = vsnprintk(buffer + head, sizeof(buffer) - head, format, args);
+	if (body < 0 || body >= sizeof(buffer) - head) {
+		return -RZI_ERR_OVERFLOW;
+	}
+	size_t used = (size_t)head + (size_t)body;
+	size_t suffix_size = strlen(suffix);
+
+	if (used + suffix_size >= sizeof(buffer)) {
+		return -RZI_ERR_OVERFLOW;
+	}
+	memcpy(buffer + used, suffix, suffix_size + 1U);
+	return write_all(buffer);
+}
+
+int rzi_at_respond_value(const char *format, ...)
+{
+	va_list args;
+	int rc;
+
+	if (!atomic_get(&started) || format == NULL) {
+		return -RZI_ERR_INVALID;
+	}
+	va_start(args, format);
+	rc = write_formatted("\r\n", "\r\nOK\r\n", format, args);
+	va_end(args);
+	return rc;
+}
+
+int rzi_at_publish_event(const char *format, ...)
+{
+	va_list args;
+	int rc;
+
+	if (!atomic_get(&started) || format == NULL) {
+		return -RZI_ERR_INVALID;
+	}
+	va_start(args, format);
+	rc = write_formatted("\r\n+EVT:", "\r\n", format, args);
+	va_end(args);
+	return rc;
+}
+
+int rzi_at_receive(const uint8_t *data, size_t size)
+{
+	uint32_t written;
+
+	if (!atomic_get(&started)) {
+		return -RZI_ERR_NOT_READY;
+	}
+	if (data == NULL && size != 0U) {
+		return -RZI_ERR_INVALID;
+	}
+	written = ring_buf_put(&rx_ring, data, size);
+	if (written != size) {
+		atomic_set(&rx_overflow, 1);
+	}
+	k_sem_give(&rx_ready);
+	return written == size ? 0 : -RZI_ERR_OVERFLOW;
+}
+
+static void process_input(void)
+{
+	uint8_t buffer[64];
+	uint32_t count;
+
+	if (atomic_cas(&rx_overflow, 1, 0)) {
+		rzi_at_parser_reset();
+		ignore_result(rzi_at_respond_status(RZI_AT_STATUS_TEST_PARAM_OVERFLOW));
+	}
+	while ((count = ring_buf_get(&rx_ring, buffer, sizeof(buffer))) != 0U) {
+		for (uint32_t i = 0; i < count; ++i) {
+			(void)rzi_at_parser_feed(buffer[i]);
+		}
+	}
+}
+
+static void thread_entry(void *unused1, void *unused2, void *unused3)
+{
+	ARG_UNUSED(unused1);
+	ARG_UNUSED(unused2);
+	ARG_UNUSED(unused3);
+
+	for (;;) {
+		(void)k_sem_take(&rx_ready, K_MSEC(CONFIG_RZI_AT_PROCESS_INTERVAL_MS));
+		process_input();
+		rzi_at_registry_process_extensions();
+	}
+}
+
+int rzi_at_start(const struct rzi_at_io *io)
+{
+	int rc;
+
+	if (k_is_in_isr()) {
+		return -RZI_ERR_ISR;
+	}
+	if (io == NULL || io->write == NULL) {
+		return -RZI_ERR_INVALID;
+	}
+	if (!atomic_cas(&started, 0, 1)) {
+		return -RZI_ERR_ALREADY;
+	}
+	active_io = *io;
+	rc = rzi_at_builtin_register();
+	if (rc == 0) {
+		rzi_at_registry_seal();
+		rc = rzi_at_registry_start_extensions();
+	}
+	if (rc != 0) {
+		atomic_clear(&started);
+		return rc;
+	}
+	k_thread_create(&at_thread, at_stack, K_THREAD_STACK_SIZEOF(at_stack), thread_entry, NULL,
+			NULL, NULL, K_PRIO_PREEMPT(CONFIG_RZI_AT_THREAD_PRIORITY), 0, K_NO_WAIT);
+	k_thread_name_set(&at_thread, "rzi_at");
+	return 0;
+}

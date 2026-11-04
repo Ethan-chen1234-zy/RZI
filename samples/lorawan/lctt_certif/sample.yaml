@@ -1,0 +1,39 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 RAKwireless
+# SPDX-License-Identifier: Apache-2.0
+
+sample:
+  name: RZI LoRaWAN certification (LCTT)
+  description: >
+    Put the LoRaWAN stack in certification mode so the LoRa Alliance
+    Certification Test Tool can drive it
+tests:
+  sample.rzi.lorawan.lctt_certif:
+    sysbuild: true
+    build_only: true
+    tags:
+      - rzi
+      - lorawan
+    platform_allow:
+      - rak4631/nrf52840/rzi
+      - rak3172/stm32wle5xx/rzi
+      - rak3362/nrf54l15/cpuapp
+    integration_platforms:
+      - rak4631/nrf52840/rzi
+      - rak3172/stm32wle5xx/rzi
+      - rak3362/nrf54l15/cpuapp
+  sample.rzi.lorawan.lctt_certif.off:
+    sysbuild: true
+    build_only: true
+    extra_configs:
+      - CONFIG_APP_LCTT_CERTIFICATION=n
+    tags:
+      - rzi
+      - lorawan
+    platform_allow:
+      - rak4631/nrf52840/rzi
+      - rak3172/stm32wle5xx/rzi
+      - rak3362/nrf54l15/cpuapp
+    integration_platforms:
+      - rak4631/nrf52840/rzi
+      - rak3172/stm32wle5xx/rzi
+      - rak3362/nrf54l15/cpuapp
