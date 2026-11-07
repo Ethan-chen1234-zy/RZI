@@ -21,6 +21,8 @@ static __maybe_unused void ignore_result(int result)
 	ARG_UNUSED(result);
 }
 
+static const struct rzi_lora_callbacks callbacks;
+
 static int hex_nibble(char value)
 {
 	if (value >= '0' && value <= '9') {
@@ -94,22 +96,40 @@ int rzi_at_lora_parse_bool(const char *argument, bool *value)
 
 static int on_network_mode(enum rzi_network_mode mode)
 {
+	int rc;
+
 	if (mode == RZI_NETWORK_MODE_LORAWAN) {
-		return rzi_lora_stop();
+		return rzi_lora_deinit();
+	}
+	if (rzi_lora_is_active()) {
+		rc = rzi_lora_stop();
+		if (rc != 0) {
+			return rc;
+		}
+	}
+	rc = rzi_lora_register_callbacks(&callbacks);
+	if (rc != 0) {
+		return rc;
 	}
 	return rzi_lora_init(mode == RZI_NETWORK_MODE_P2P_FSK ? RZI_LORA_MOD_FSK
 							      : RZI_LORA_MOD_LORA);
 }
 
-int rzi_at_lora_ensure_started(void)
+int rzi_at_lora_ensure_active(void)
 {
 	enum rzi_network_mode mode = rzi_at_get_network_mode();
+	int rc;
 
 	if (mode == RZI_NETWORK_MODE_LORAWAN) {
 		return -RZI_ERR_BUSY;
 	}
-	if (rzi_lora_is_started()) {
+	if (rzi_lora_is_active()) {
 		return 0;
+	}
+	rc = rzi_lora_register_callbacks(&callbacks);
+
+	if (rc != 0) {
+		return rc;
 	}
 	return rzi_lora_init(mode == RZI_NETWORK_MODE_P2P_FSK ? RZI_LORA_MOD_FSK
 							      : RZI_LORA_MOD_LORA);
@@ -162,7 +182,7 @@ static void extension_process(void)
 	if (p2p_start_pending) {
 		p2p_start_pending = false;
 		if (rzi_at_get_network_mode() != RZI_NETWORK_MODE_LORAWAN &&
-		    rzi_at_lora_ensure_started() != 0) {
+		    rzi_at_lora_ensure_active() != 0) {
 			(void)rzi_at_restore_default_network_mode();
 		}
 	}

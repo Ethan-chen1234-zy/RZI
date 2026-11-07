@@ -211,6 +211,11 @@ rzi_at_uart_init()
   that is safe to initialize eagerly and repeatedly. LoRaWAN, raw LoRa, AT,
   and other services requiring configuration or active resources own their
   service-specific initialization.
+- Use `stop` to end active processing while retaining configuration,
+  subscribers, and resources intended for restart. Use `deinit` only when it
+  additionally releases backend resources or callback references. A successful
+  `stop` must permit a later `init`; both operations should be idempotent when
+  the service is already stopped.
 - Use `get_<noun>` when copying into an output parameter.
 - Use `is_<state>` for boolean queries.
 - Use `set_<noun>` only when changing an existing setting.

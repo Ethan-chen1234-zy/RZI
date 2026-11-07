@@ -32,8 +32,8 @@ value returned by an API.
 | `RZI_SUCCESS` | 0 | Request accepted or operation completed |
 | `RZI_ERR_INVALID` | 1000 | Invalid argument, enum, port, or payload field |
 | `RZI_ERR_ISR` | 1001 | Thread-context API called from an ISR |
-| `RZI_ERR_NOT_READY` | 1002 | Service or backend has not started |
-| `RZI_ERR_ALREADY` | 1003 | Repeated start, or the object is already registered |
+| `RZI_ERR_NOT_READY` | 1002 | Service or backend is not active |
+| `RZI_ERR_ALREADY` | 1003 | Repeated init, or the object is already registered |
 | `RZI_ERR_BUSY` | 1004 | Conflicting asynchronous operation in flight |
 | `RZI_ERR_NOT_SUPPORTED` | 1005 | Selected backend cannot perform the request |
 | `RZI_ERR_NO_RESOURCE` | 1006 | Subscriber slot, buffer, or table is full |
@@ -50,10 +50,10 @@ value returned by an API.
 | `RZI_ERR_INVALID_STATE` | 1017 | Service lifecycle does not allow this operation |
 
 `RZI_ERR_ALREADY` means the requested state or object is already present:
-a second `init` or `start`, or a duplicate AT command name. A setting
+a second `init`, or a duplicate AT command name. A setting
 changed after `rzi_lorawan_init`, and registration after the AT registry is sealed,
 return `RZI_ERR_INVALID_STATE`. `RZI_ERR_NO_DEVICE` means the hardware
-device is missing. An adapter or service that has not been started returns
+device is missing. An adapter or service that is not active returns
 `RZI_ERR_NOT_READY`.
 
 Each public function documents the subset it actually returns. Asynchronous

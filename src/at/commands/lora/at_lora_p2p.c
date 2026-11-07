@@ -386,7 +386,7 @@ static int handle_psend(const struct rzi_at_request *request, void *user_data)
 	if (rc != 0) {
 		return rc;
 	}
-	rc = rzi_at_lora_ensure_started();
+	rc = rzi_at_lora_ensure_active();
 	if (rc != 0) {
 		return rc;
 	}
@@ -407,7 +407,7 @@ static int handle_precv(const struct rzi_at_request *request, void *user_data)
 	if (rc != 0 || parsed < 0 || parsed > 65535) {
 		return -RZI_ERR_INVALID;
 	}
-	rc = rzi_at_lora_ensure_started();
+	rc = rzi_at_lora_ensure_active();
 	if (rc != 0) {
 		return rc;
 	}

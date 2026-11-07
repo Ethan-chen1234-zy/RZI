@@ -15,7 +15,7 @@
 static uint8_t last_payload[RZI_LORA_MAX_PAYLOAD];
 static size_t last_size;
 
-static int test_start(enum rzi_lora_modulation modulation)
+static int test_init(enum rzi_lora_modulation modulation)
 {
 	ARG_UNUSED(modulation);
 	last_size = 0U;
@@ -79,8 +79,9 @@ static int test_cw(uint32_t frequency_hz, int8_t power_dbm, uint32_t duration_ms
 }
 
 const struct rzi_lora_backend_api rzi_lora_backend = {
-	.start = test_start,
+	.init = test_init,
 	.stop = test_stop,
+	.deinit = test_ok,
 	.apply_config = test_apply,
 	.send = test_send,
 	.receive = test_receive,

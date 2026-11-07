@@ -22,7 +22,7 @@ static int respond_ok(int rc)
 
 static int ensure_radio(void)
 {
-	return rzi_at_lora_ensure_started();
+	return rzi_at_lora_ensure_active();
 }
 
 static int handle_trssi(const struct rzi_at_request *request, void *user_data)

@@ -16,7 +16,7 @@
 #include "backend/lora_backend.h"
 
 static K_MUTEX_DEFINE(lock);
-static atomic_t started;
+static atomic_t active;
 static enum rzi_lora_modulation modulation = RZI_LORA_MOD_LORA;
 static struct rzi_lora_config config = {
 	.frequency_hz = 868000000U,
@@ -95,20 +95,33 @@ int rzi_lora_init(enum rzi_lora_modulation value)
 	if (value != RZI_LORA_MOD_LORA && value != RZI_LORA_MOD_FSK) {
 		return -RZI_ERR_INVALID;
 	}
-	if (rzi_lora_backend.start == NULL) {
+	if (rzi_lora_backend.init == NULL) {
 		return -RZI_ERR_NOT_SUPPORTED;
 	}
 	k_mutex_lock(&lock, K_FOREVER);
-	rc = rzi_lora_backend.start(value);
-	if (rc == 0) {
-		modulation = value;
-		atomic_set(&started, 1);
-		if (rzi_lora_backend.apply_config != NULL) {
-			rc = rzi_lora_backend.apply_config(&config);
-		}
+	if (atomic_get(&active)) {
+		k_mutex_unlock(&lock);
+		return -RZI_ERR_ALREADY;
 	}
+	rc = rzi_lora_backend.init(value);
+	if (rc != 0) {
+		k_mutex_unlock(&lock);
+		return rc;
+	}
+	if (rzi_lora_backend.apply_config != NULL) {
+		rc = rzi_lora_backend.apply_config(&config);
+	}
+	if (rc != 0) {
+		if (rzi_lora_backend.stop != NULL) {
+			(void)rzi_lora_backend.stop();
+		}
+		k_mutex_unlock(&lock);
+		return rc;
+	}
+	modulation = value;
+	atomic_set(&active, 1);
 	k_mutex_unlock(&lock);
-	return rc;
+	return 0;
 }
 
 int rzi_lora_stop(void)
@@ -119,20 +132,45 @@ int rzi_lora_stop(void)
 		return rc;
 	}
 	k_mutex_lock(&lock, K_FOREVER);
-	if (rzi_lora_backend.stop != NULL) {
-		rc = rzi_lora_backend.stop();
+	if (!atomic_get(&active)) {
+		atomic_clear(&rx_active);
+		k_mutex_unlock(&lock);
+		return 0;
 	}
+	if (rzi_lora_backend.stop == NULL) {
+		k_mutex_unlock(&lock);
+		return -RZI_ERR_NOT_SUPPORTED;
+	}
+	rc = rzi_lora_backend.stop();
 	if (rc == 0) {
-		atomic_clear(&started);
+		atomic_clear(&active);
 		atomic_clear(&rx_active);
 	}
 	k_mutex_unlock(&lock);
 	return rc;
 }
 
-bool rzi_lora_is_started(void)
+bool rzi_lora_is_active(void)
 {
-	return atomic_get(&started) != 0;
+	return atomic_get(&active) != 0;
+}
+
+int rzi_lora_deinit(void)
+{
+	int rc = rzi_lora_stop();
+
+	if (rc != 0) {
+		return rc;
+	}
+	k_mutex_lock(&lock, K_FOREVER);
+	if (rzi_lora_backend.deinit != NULL) {
+		rc = rzi_lora_backend.deinit();
+	}
+	if (rc == 0) {
+		memset(&callbacks, 0, sizeof(callbacks));
+	}
+	k_mutex_unlock(&lock);
+	return rc;
 }
 
 int rzi_lora_get_config(struct rzi_lora_config *out)
@@ -165,7 +203,7 @@ int rzi_lora_set_config(const struct rzi_lora_config *in)
 	}
 	k_mutex_lock(&lock, K_FOREVER);
 	config = *in;
-	if (atomic_get(&started) && rzi_lora_backend.apply_config != NULL) {
+	if (atomic_get(&active) && rzi_lora_backend.apply_config != NULL) {
 		rc = rzi_lora_backend.apply_config(&config);
 	}
 	k_mutex_unlock(&lock);
@@ -186,7 +224,7 @@ int rzi_lora_send(const uint8_t *data, size_t size)
 	if (size > RZI_LORA_MAX_PAYLOAD) {
 		return -RZI_ERR_TOO_LARGE;
 	}
-	if (!atomic_get(&started) || rzi_lora_backend.send == NULL) {
+	if (!atomic_get(&active) || rzi_lora_backend.send == NULL) {
 		return -RZI_ERR_NOT_SUPPORTED;
 	}
 	memcpy(framed, data, size);
@@ -203,7 +241,7 @@ int rzi_lora_receive(uint32_t timeout_ms)
 	if (rc != 0) {
 		return rc;
 	}
-	if (!atomic_get(&started) || rzi_lora_backend.receive == NULL) {
+	if (!atomic_get(&active) || rzi_lora_backend.receive == NULL) {
 		return -RZI_ERR_NOT_SUPPORTED;
 	}
 	rc = rzi_lora_backend.receive(timeout_ms);

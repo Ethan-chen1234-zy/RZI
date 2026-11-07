@@ -61,7 +61,7 @@ static int fill_config(const struct rzi_lora_config *config, bool tx, struct lor
 	return 0;
 }
 
-static int zephyr_start(enum rzi_lora_modulation value)
+static int zephyr_init(enum rzi_lora_modulation value)
 {
 	const struct device *dev = radio_device();
 
@@ -167,7 +167,7 @@ static int unsupported_cw(uint32_t frequency_hz, int8_t power_dbm, uint32_t dura
 }
 
 const struct rzi_lora_backend_api rzi_lora_backend = {
-	.start = zephyr_start,
+	.init = zephyr_init,
 	.stop = zephyr_stop,
 	.apply_config = zephyr_apply,
 	.send = zephyr_send,

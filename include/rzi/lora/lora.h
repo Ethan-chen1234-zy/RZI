@@ -122,6 +122,7 @@ __must_check int rzi_lora_register_callbacks(const struct rzi_lora_callbacks *ca
  *
  * @retval 0 Service initialized.
  * @retval -RZI_ERR_INVALID modulation is not a supported enumerator.
+ * @retval -RZI_ERR_ALREADY The service has already been initialized.
  * @retval -RZI_ERR_NOT_SUPPORTED The selected backend cannot initialize.
  * @retval -RZI_ERR_BUSY The radio is owned by another service.
  * @retval -RZI_ERR_NOT_READY The backend is not initialized.
@@ -137,24 +138,41 @@ __must_check int rzi_lora_init(enum rzi_lora_modulation modulation);
 /**
  * @brief Stop the raw LoRa service and any radio test.
  *
+ * Configuration, callbacks, and restartable backend resources are retained.
+ * Repeated calls succeed; call rzi_lora_init() to restart.
+ *
  * @retval 0 Service stopped.
  * @retval -RZI_ERR_NOT_SUPPORTED The selected backend cannot stop.
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
- * @note Thread context only.
+ * @note Thread context only. The caller must serialize this with send,
+ *       receive and poll, including any callbacks they deliver.
  * @since 0.3
  */
 __must_check int rzi_lora_stop(void);
 
 /**
- * @brief Return whether the raw LoRa service has started.
+ * @brief Stop raw LoRa and release backend resources and callback references.
  *
- * @return True after a successful rzi_lora_init().
+ * Configuration is retained. Register callbacks again before the next init.
+ * Repeated calls succeed. Shared USP resources remain active for other users.
+ *
+ * @return 0 on success, otherwise a negative RZI_ERR_* from stop or release.
+ * @note Thread context only. The caller must serialize this with send,
+ *       receive and poll, including any callbacks they deliver.
+ * @since 0.5
+ */
+__must_check int rzi_lora_deinit(void);
+
+/**
+ * @brief Return whether the raw LoRa service is active.
+ *
+ * @return True after a successful rzi_lora_init() and before stop/deinit.
  *
  * @note May be called from any thread.
  * @since 0.3
  */
-bool rzi_lora_is_started(void);
+bool rzi_lora_is_active(void);
 
 /**
  * @brief Copy the current P2P configuration.
@@ -174,7 +192,7 @@ __must_check int rzi_lora_get_config(struct rzi_lora_config *config);
  * @brief Replace the current P2P configuration.
  *
  * The configuration is copied before this function returns. When the service
- * has started, the backend is asked to apply it immediately.
+ * is active, the backend is asked to apply it immediately.
  *
  * @param config Configuration to store.
  *
@@ -201,7 +219,7 @@ __must_check int rzi_lora_set_config(const struct rzi_lora_config *config);
  * @retval 0 Request accepted.
  * @retval -RZI_ERR_INVALID data is NULL or size is zero.
  * @retval -RZI_ERR_TOO_LARGE size exceeds RZI_LORA_MAX_PAYLOAD.
- * @retval -RZI_ERR_NOT_SUPPORTED The service has not started or the backend cannot send.
+ * @retval -RZI_ERR_NOT_SUPPORTED The service is not active or the backend cannot send.
  * @retval -RZI_ERR_BUSY The radio is busy.
  * @retval -RZI_ERR_NOT_READY The backend is not initialized.
  * @retval -RZI_ERR_NO_DEVICE The radio device is missing.
@@ -220,7 +238,7 @@ __must_check int rzi_lora_send(const uint8_t *data, size_t size);
  *        values receive until that timeout.
  *
  * @retval 0 Request accepted.
- * @retval -RZI_ERR_NOT_SUPPORTED The service has not started or the backend cannot receive.
+ * @retval -RZI_ERR_NOT_SUPPORTED The service is not active or the backend cannot receive.
  * @retval -RZI_ERR_BUSY The radio is busy.
  * @retval -RZI_ERR_NOT_READY The backend is not initialized.
  * @retval -RZI_ERR_NO_DEVICE The radio device is missing.

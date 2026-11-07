@@ -39,7 +39,7 @@ int rzi_at_lora_parse_long(const char *argument, long *value);
 /** Parse a 0/1 boolean command argument. */
 int rzi_at_lora_parse_bool(const char *argument, bool *value);
 
-/** Ensure the raw LoRa service is started for the current network mode. */
-int rzi_at_lora_ensure_started(void);
+/** Ensure the raw LoRa service is active for the current network mode. */
+int rzi_at_lora_ensure_active(void);
 
 #endif /* RZI_AT_COMMAND_LORA_PRIV_H */

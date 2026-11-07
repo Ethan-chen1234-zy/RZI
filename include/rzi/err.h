@@ -35,9 +35,9 @@ enum rzi_err {
 	RZI_ERR_INVALID = 1000,
 	/** A thread-context API was called from an ISR. */
 	RZI_ERR_ISR = 1001,
-	/** The service or backend has not started or is not ready. */
+	/** The service or backend is not initialized or ready. */
 	RZI_ERR_NOT_READY = 1002,
-	/** Repeated start, or the object is already registered. */
+	/** Repeated init, or the object is already registered. */
 	RZI_ERR_ALREADY = 1003,
 	/** A conflicting asynchronous operation is already in flight. */
 	RZI_ERR_BUSY = 1004,

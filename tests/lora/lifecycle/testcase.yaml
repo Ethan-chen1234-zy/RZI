@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 RAKwireless
+# SPDX-License-Identifier: Apache-2.0
+
+tests:
+  rzi.lora.lifecycle:
+    platform_allow: [native_sim]
+    integration_platforms: [native_sim]
+    tags: [rzi, lora, lifecycle]

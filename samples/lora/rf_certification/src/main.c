@@ -277,6 +277,7 @@ static int run_step(size_t index, uint32_t duration_ms, uint32_t *counter)
 	int64_t next_log = start + PROGRESS_LOG_MS;
 	uint32_t sent = 0;
 	uint8_t hop = 0;
+	int stop_rc;
 	int rc;
 
 	LOG_INF("Step %zu of %zu:", index + 1U, ARRAY_SIZE(steps));
@@ -298,7 +299,7 @@ static int run_step(size_t index, uint32_t duration_ms, uint32_t *counter)
 		if (step->hop_channels != 0U) {
 			rc = configure(step, step->frequency_hz + hop_order[hop] * FCC_HOP_STEP_HZ);
 			if (rc != 0) {
-				return rc;
+				goto stop_radio;
 			}
 			if (++hop == step->hop_channels) {
 				hop = 0U;
@@ -307,7 +308,7 @@ static int run_step(size_t index, uint32_t duration_ms, uint32_t *counter)
 		}
 		rc = send_packet((*counter)++, step->payload_size);
 		if (rc != 0) {
-			return rc;
+			goto stop_radio;
 		}
 		++sent;
 		if (k_uptime_get() >= next_log) {
@@ -316,7 +317,10 @@ static int run_step(size_t index, uint32_t duration_ms, uint32_t *counter)
 		}
 	}
 	LOG_INF("Step %zu done: %u packets", index + 1U, sent);
-	return 0;
+
+stop_radio:
+	stop_rc = rzi_lora_stop();
+	return rc != 0 ? rc : stop_rc;
 }
 
 int main(void)

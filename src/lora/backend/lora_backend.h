@@ -11,10 +11,12 @@
 
 /** One compiled backend implements this table. */
 struct rzi_lora_backend_api {
-	/** Enter LoRa or FSK operation. */
-	int (*start)(enum rzi_lora_modulation modulation);
-	/** Leave the radio. NULL is treated as success. */
+	/** Initialize LoRa or FSK operation. */
+	int (*init)(enum rzi_lora_modulation modulation);
+	/** Leave the radio. NULL means an active service cannot stop. */
 	int (*stop)(void);
+	/** Release resources retained for restart. NULL needs no extra cleanup. */
+	int (*deinit)(void);
 	/** Push the stored configuration to the radio. */
 	int (*apply_config)(const struct rzi_lora_config *config);
 	/** Transmit one payload. */

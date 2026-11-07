@@ -53,6 +53,7 @@ K_MSGQ_DEFINE(rx_queue, sizeof(struct rx_packet), 2, 4);
 static struct rzi_lora_config config;
 static enum rzi_lora_modulation modulation = RZI_LORA_MOD_LORA;
 static bool opened;
+static bool platform_acquired;
 static bool test_mode;
 static bool tx_busy;
 static bool rx_active;
@@ -263,7 +264,11 @@ static int open_radio(void)
 	if (opened) {
 		return 0;
 	}
-	if (smtc_rac_open_radio(TX_ID) != TX_ID || smtc_rac_open_radio(RX_ID) != RX_ID) {
+	if (smtc_rac_open_radio(TX_ID) != TX_ID) {
+		return -RZI_ERR_NO_RESOURCE;
+	}
+	if (smtc_rac_open_radio(RX_ID) != RX_ID) {
+		(void)smtc_rac_close_radio(TX_ID);
 		return -RZI_ERR_NO_RESOURCE;
 	}
 	ctx = smtc_rac_get_context(TX_ID);
@@ -318,13 +323,18 @@ static int leave_test_mode(void)
 	return rc;
 }
 
-static int usp_start(enum rzi_lora_modulation value)
+static int usp_init(enum rzi_lora_modulation value)
 {
+	bool acquired_now = false;
 	int rc;
 
-	rc = rzi_usp_init();
-	if (rc != 0) {
-		return rc;
+	if (!platform_acquired) {
+		rc = rzi_usp_acquire();
+		if (rc != 0) {
+			return rc;
+		}
+		platform_acquired = true;
+		acquired_now = true;
 	}
 	rzi_usp_lock();
 	rc = open_radio();
@@ -332,6 +342,9 @@ static int usp_start(enum rzi_lora_modulation value)
 		modulation = value;
 	}
 	rzi_usp_unlock();
+	if (rc != 0 && acquired_now && rzi_usp_release() == 0) {
+		platform_acquired = false;
+	}
 	return rc;
 }
 
@@ -346,6 +359,32 @@ static int usp_stop(void)
 	rzi_usp_unlock();
 	atomic_clear(&tx_done);
 	k_msgq_purge(&rx_queue);
+	return rc;
+}
+
+static int usp_deinit(void)
+{
+	int rc = 0;
+
+	rzi_usp_lock();
+	if (opened) {
+		rc = rac_result(smtc_rac_close_radio(TX_ID));
+		if (rc == 0) {
+			rc = rac_result(smtc_rac_close_radio(RX_ID));
+			if (rc != 0) {
+				(void)smtc_rac_open_radio(TX_ID);
+			} else {
+				opened = false;
+			}
+		}
+	}
+	rzi_usp_unlock();
+	if (rc == 0 && platform_acquired) {
+		rc = rzi_usp_release();
+		if (rc == 0) {
+			platform_acquired = false;
+		}
+	}
 	return rc;
 }
 
@@ -501,8 +540,9 @@ static void usp_poll(void)
 }
 
 const struct rzi_lora_backend_api rzi_lora_backend = {
-	.start = usp_start,
+	.init = usp_init,
 	.stop = usp_stop,
+	.deinit = usp_deinit,
 	.apply_config = usp_apply,
 	.send = usp_send,
 	.receive = usp_receive,

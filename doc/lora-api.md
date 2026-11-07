@@ -28,6 +28,39 @@ process loop).
 `rzi_lora_test_get_rssi()` returns `-RZI_ERR_BUSY` until the result is
 ready.
 
+## Completion model
+
+Raw LoRa does not use a LoRaWAN-style service worker. Completion follows the
+selected backend:
+
+- Zephyr: `lora_send()` / `lora_recv()` block the caller; callbacks publish
+  from that thread after the driver returns.
+- USP: RAC completes asynchronously; application callbacks are delivered from
+  `rzi_lora_poll()` in the caller thread.
+- Test: same-thread software publish.
+
+A unified Raw LoRa async dispatcher would only hide Zephyr blocking behind
+another thread, add queue latency on every P2P path, and blur ownership with
+the LoRaWAN dispatcher. Keep backend-native completion until a product need
+requires a driver-level async API.
+
+## Lifecycle
+
+`rzi_lora_init()` selects LoRa or FSK operation and applies the stored
+configuration. Calling it while active returns `-RZI_ERR_ALREADY`.
+
+`rzi_lora_stop()` ends receive, transmit, or certification-test activity while
+retaining configuration, callbacks, and backend resources needed for a fast
+restart. It is idempotent; after success, `init` may select either modulation
+again. A backend without a safe stop operation returns
+`-RZI_ERR_NOT_SUPPORTED` and remains active.
+
+`rzi_lora_deinit()` first stops the service, then releases backend resources
+and clears the callback table. Configuration remains available for the next
+`init`. A stop or release failure preserves ownership so the caller may retry.
+Callers serialize stop/deinit with send, receive, poll, and their callbacks;
+the current raw-radio API does not own a dispatcher thread.
+
 ## Backends
 
 | Kconfig | Radio |
