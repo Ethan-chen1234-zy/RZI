@@ -2,13 +2,14 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /**
  * @file
- * @brief Unified initialization for compiled-in RZI services.
+ * @brief Eager initialization of shared RZI infrastructure.
  */
+
+#include <rzi/init.h>
 
 #include <zephyr/kernel.h>
 
 #include <rzi/err.h>
-#include <rzi/init.h>
 
 #if defined(CONFIG_RZI_STORAGE)
 #include <rzi/storage/storage.h>
@@ -24,10 +25,6 @@ int rzi_init(void)
 
 #if defined(CONFIG_RZI_STORAGE)
 	rc = rzi_storage_init();
-	if (rc != 0) {
-		return rc;
-	}
 #endif
-
 	return rc;
 }

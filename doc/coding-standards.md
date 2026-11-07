@@ -113,7 +113,8 @@ Private headers must sit next to the implementation. They must not enter
 - Public service headers: `include/rzi/<service>/<name>.h`.
 - Dependent public APIs hang under their owning service:
   `include/rzi/at/uart.h`.
-- Module-level headers may stay at `include/rzi/`: `err.h`, `version.h`.
+- Module-level headers may stay at `include/rzi/`: `err.h`, `init.h`,
+  `version.h`.
 - Backend implementations:
   `src/<service>/backend/<service>_backend_<backend>.c`.
 - Tests and samples start with the service name and then describe the behavior,
@@ -153,6 +154,10 @@ Functions:
 rzi_<service>_<operation>()
 ```
 
+Module-level operations without an owning service use `rzi_<operation>()`,
+for example `rzi_init()`. Do not invent a service
+prefix just to fit the service-specific form.
+
 ```c
 rzi_lorawan_init()
 rzi_lorawan_join()
@@ -163,8 +168,9 @@ rzi_at_uart_start()
 ```
 
 - Use `init` to bring up a service and `start` when processing begins
-  without a separate configuration argument. `rzi_init()` prepares power
-  and storage. `rzi_lorawan_init()` brings up LoRaWAN for one region.
+  without a separate configuration argument. `rzi_init()` is limited to
+  parameter-free shared infrastructure that is safe to initialize eagerly
+  and repeatedly. `rzi_lorawan_init()` brings up LoRaWAN for one region.
   Raw LoRa uses `rzi_lora_init()`. AT still uses `start`.
 - Use `get_<noun>` when copying into an output parameter.
 - Use `is_<state>` for boolean queries.
@@ -424,7 +430,7 @@ CI still applies. See [CONTRIBUTING.md](../CONTRIBUTING.md) for commands and
 - [ ] Public headers live under `include/rzi/<service>/`. Applications only
       `#include <rzi/...>`.
 - [ ] Public symbols are `rzi_` / `RZI_`. Functions are
-      `rzi_<service>_<operation>()`.
+      `rzi_<service>_<operation>()`, or `rzi_<operation>()` for module-level APIs.
 - [ ] Header guards match the include path.
 - [ ] Private helper verbs describe their behavior; boolean names and time
       units are explicit. `_locked` helpers document the required lock.

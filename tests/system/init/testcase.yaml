@@ -4,9 +4,20 @@
 tests:
   rzi.system.init:
     platform_allow:
-      - native_sim
+      - native_sim/native/64
     integration_platforms:
-      - native_sim
+      - native_sim/native/64
     tags:
       - rzi
       - init
+  rzi.system.init.storage:
+    platform_allow:
+      - native_sim/native/64
+    integration_platforms:
+      - native_sim/native/64
+    extra_configs:
+      - CONFIG_RZI_STORAGE=y
+    tags:
+      - rzi
+      - init
+      - storage
