@@ -12,8 +12,17 @@
 
 #include "at_lorawan_priv.h"
 
+#define RZI_ATCMD_DEVEUI    "DEVEUI"
+#define RZI_ATCMD_APPEUI    "APPEUI"
+#define RZI_ATCMD_APPKEY    "APPKEY"
+#define RZI_ATCMD_DEVADDR   "DEVADDR"
+#define RZI_ATCMD_NWKSKEY   "NWKSKEY"
+#define RZI_ATCMD_APPSKEY   "APPSKEY"
+#define RZI_ATCMD_NETID     "NETID"
+#define RZI_ATCMD_MCROOTKEY "MCROOTKEY"
+
 struct key_command {
-	const char *response_name;
+	const char *name;
 	size_t size;
 	int (*get)(uint8_t *value, size_t len);
 	int (*set)(const uint8_t *value, size_t len);
@@ -35,7 +44,7 @@ static int handle_key(const struct rzi_at_request *request, void *user_data)
 			return rc;
 		}
 		rzi_at_lorawan_bin_to_hex(value, command->size, hex);
-		return rzi_at_respond_value("%s=%s", command->response_name, hex);
+		return rzi_at_respond_value(RZI_AT_VALUE("%s", "%s"), command->name, hex);
 	}
 
 	rc = rzi_at_lorawan_hex_to_bin(request->argument, value, command->size);
@@ -64,7 +73,7 @@ static int handle_devaddr(const struct rzi_at_request *request, void *user_data)
 		}
 		sys_put_be32(dev_addr, bytes);
 		rzi_at_lorawan_bin_to_hex(bytes, sizeof(bytes), hex);
-		return rzi_at_respond_value("AT+DEVADDR=%s", hex);
+		return rzi_at_respond_value(RZI_AT_VALUE(RZI_ATCMD_DEVADDR, "%s"), hex);
 	}
 	rc = rzi_at_lorawan_hex_to_bin(request->argument, bytes, sizeof(bytes));
 	if (rc != 0) {
@@ -91,7 +100,7 @@ static int handle_netid(const struct rzi_at_request *request, void *user_data)
 		bytes[1] = (uint8_t)((net_id >> 8) & 0xffU);
 		bytes[2] = (uint8_t)(net_id & 0xffU);
 		rzi_at_lorawan_bin_to_hex(bytes, sizeof(bytes), hex);
-		return rzi_at_respond_value("AT+NETID=%s", hex);
+		return rzi_at_respond_value(RZI_AT_VALUE(RZI_ATCMD_NETID, "%s"), hex);
 	}
 	rc = rzi_at_lorawan_hex_to_bin(request->argument, bytes, sizeof(bytes));
 	if (rc != 0) {
@@ -115,39 +124,39 @@ static int handle_mcrootkey(const struct rzi_at_request *request, void *user_dat
 		return rc;
 	}
 	rzi_at_lorawan_bin_to_hex(key, sizeof(key), hex);
-	return rzi_at_respond_value("AT+MCROOTKEY=%s", hex);
+	return rzi_at_respond_value(RZI_AT_VALUE(RZI_ATCMD_MCROOTKEY, "%s"), hex);
 }
 
 static struct key_command dev_eui = {
-	.response_name = "AT+DEVEUI",
+	.name = RZI_ATCMD_DEVEUI,
 	.size = 8,
 	.get = rzi_lorawan_get_dev_eui,
 	.set = rzi_lorawan_set_dev_eui,
 };
 
 static struct key_command join_eui = {
-	.response_name = "AT+APPEUI",
+	.name = RZI_ATCMD_APPEUI,
 	.size = 8,
 	.get = rzi_lorawan_get_app_eui,
 	.set = rzi_lorawan_set_app_eui,
 };
 
 static struct key_command app_key = {
-	.response_name = "AT+APPKEY",
+	.name = RZI_ATCMD_APPKEY,
 	.size = 16,
 	.get = rzi_lorawan_get_app_key,
 	.set = rzi_lorawan_set_app_key,
 };
 
 static struct key_command nwk_skey = {
-	.response_name = "AT+NWKSKEY",
+	.name = RZI_ATCMD_NWKSKEY,
 	.size = 16,
 	.get = rzi_lorawan_get_nwk_skey,
 	.set = rzi_lorawan_set_nwk_skey,
 };
 
 static struct key_command app_skey = {
-	.response_name = "AT+APPSKEY",
+	.name = RZI_ATCMD_APPSKEY,
 	.size = 16,
 	.get = rzi_lorawan_get_app_skey,
 	.set = rzi_lorawan_set_app_skey,
@@ -155,54 +164,54 @@ static struct key_command app_skey = {
 
 static const struct rzi_at_command commands[] = {
 	{
-		.name = "DEVEUI",
+		.name = RZI_ATCMD_DEVEUI,
 		.help = "get or set the device EUI (8 bytes in hex)",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_key,
 		.user_data = &dev_eui,
 	},
 	{
-		.name = "APPEUI",
+		.name = RZI_ATCMD_APPEUI,
 		.help = "get or set the application EUI (8 bytes in hex)",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_key,
 		.user_data = &join_eui,
 	},
 	{
-		.name = "APPKEY",
+		.name = RZI_ATCMD_APPKEY,
 		.help = "get or set the application key (16 bytes in hex)",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_key,
 		.user_data = &app_key,
 	},
 	{
-		.name = "DEVADDR",
+		.name = RZI_ATCMD_DEVADDR,
 		.help = "get or set the device address (4 bytes in hex)",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_devaddr,
 	},
 	{
-		.name = "NWKSKEY",
+		.name = RZI_ATCMD_NWKSKEY,
 		.help = "get or set the network session key (16 bytes in hex)",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_key,
 		.user_data = &nwk_skey,
 	},
 	{
-		.name = "APPSKEY",
+		.name = RZI_ATCMD_APPSKEY,
 		.help = "get or set the application session key (16 bytes in hex)",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_key,
 		.user_data = &app_skey,
 	},
 	{
-		.name = "NETID",
+		.name = RZI_ATCMD_NETID,
 		.help = "get or set the network identifier (NetID) (3 bytes in hex)",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_netid,
 	},
 	{
-		.name = "MCROOTKEY",
+		.name = RZI_ATCMD_MCROOTKEY,
 		.help = "get the multicast root key (16 bytes in hex)",
 		.allowed_operations = RZI_AT_ALLOW_READ,
 		.handler = handle_mcrootkey,

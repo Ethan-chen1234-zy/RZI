@@ -17,6 +17,10 @@
 
 #include "at_lorawan_priv.h"
 
+#define RZI_ATCMD_MASK "MASK"
+#define RZI_ATCMD_CHE  "CHE"
+#define RZI_ATCMD_CHS  "CHS"
+
 #define NARROW_BLOCKS 8U
 #define WIDE_GROUP    NARROW_BLOCKS
 #define GROUPS        (NARROW_BLOCKS + 1U)
@@ -102,7 +106,8 @@ static int handle_mask(const struct rzi_at_request *request, void *user_data)
 	ARG_UNUSED(user_data);
 	if (request->operation == RZI_AT_OP_READ) {
 		rc = read_groups(&groups);
-		return rc != 0 ? rc : rzi_at_respond_value("AT+MASK=%04X", groups);
+		return rc != 0 ? rc
+			       : rzi_at_respond_value(RZI_AT_VALUE(RZI_ATCMD_MASK, "%04X"), groups);
 	}
 	if (strlen(request->argument) != 4U) {
 		return -RZI_ERR_INVALID;
@@ -143,7 +148,7 @@ static int handle_che(const struct rzi_at_request *request, void *user_data)
 			return rc;
 		}
 		if (groups == MASK_ALL) {
-			return rzi_at_respond_value("AT+CHE=0");
+			return rzi_at_respond_value(RZI_AT_VALUE(RZI_ATCMD_CHE, "0"));
 		}
 		list[0] = '\0';
 		for (uint32_t group = 0; group < GROUPS; ++group) {
@@ -152,7 +157,7 @@ static int handle_che(const struct rzi_at_request *request, void *user_data)
 							 used == 0U ? "" : ":", group + 1U);
 			}
 		}
-		return rzi_at_respond_value("AT+CHE=%s", list);
+		return rzi_at_respond_value(RZI_AT_VALUE(RZI_ATCMD_CHE, "%s"), list);
 	}
 	if (strcmp(request->argument, "0") == 0) {
 		put_group(mask, WIDE_GROUP);
@@ -187,7 +192,9 @@ static int handle_chs(const struct rzi_at_request *request, void *user_data)
 	ARG_UNUSED(user_data);
 	if (request->operation == RZI_AT_OP_READ) {
 		rc = rzi_lorawan_get_fixed_channel(&frequency_hz);
-		return rc != 0 ? rc : rzi_at_respond_value("AT+CHS=%u", frequency_hz);
+		return rc != 0 ? rc
+			       : rzi_at_respond_value(RZI_AT_VALUE(RZI_ATCMD_CHS, "%u"),
+						      frequency_hz);
 	}
 	rc = rzi_at_lorawan_parse_long(request->argument, &parsed);
 	if (rc != 0 || parsed < 0) {
@@ -199,19 +206,19 @@ static int handle_chs(const struct rzi_at_request *request, void *user_data)
 
 static const struct rzi_at_command commands[] = {
 	{
-		.name = "MASK",
+		.name = RZI_ATCMD_MASK,
 		.help = "get or set the channel mask (only for US915, AU915)",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_mask,
 	},
 	{
-		.name = "CHE",
+		.name = RZI_ATCMD_CHE,
 		.help = "get or set eight channels mode (only for US915, AU915)",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_che,
 	},
 	{
-		.name = "CHS",
+		.name = RZI_ATCMD_CHS,
 		.help = "get or set single channel mode (only for US915, AU915)",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_chs,

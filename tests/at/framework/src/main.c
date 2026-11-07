@@ -15,6 +15,8 @@
 #endif
 #endif
 
+#define RZI_ATCMD_CUSTOM "CUSTOM"
+
 K_SEM_DEFINE(response_ready, 0, 16);
 K_MUTEX_DEFINE(output_lock);
 
@@ -53,11 +55,11 @@ static int custom_handler(const struct rzi_at_request *request, void *user_data)
 		}
 		return rzi_at_respond_status(RZI_AT_STATUS_OK);
 	}
-	return rzi_at_respond_value("AT+CUSTOM=value");
+	return rzi_at_respond_value(RZI_AT_VALUE(RZI_ATCMD_CUSTOM, "value"));
 }
 
 static const struct rzi_at_command custom_command = {
-	.name = "CUSTOM",
+	.name = RZI_ATCMD_CUSTOM,
 	.help = "test command",
 	.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 	.handler = custom_handler,

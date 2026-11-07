@@ -13,6 +13,25 @@
 
 #include "at_lorawan_priv.h"
 
+#define RZI_ATCMD_BAND        "BAND"
+#define RZI_ATCMD_CLASS       "CLASS"
+#define RZI_ATCMD_ADR         "ADR"
+#define RZI_ATCMD_DCS         "DCS"
+#define RZI_ATCMD_DR          "DR"
+#define RZI_ATCMD_TXP         "TXP"
+#define RZI_ATCMD_PNM         "PNM"
+#define RZI_ATCMD_RX1DL       "RX1DL"
+#define RZI_ATCMD_RX2DL       "RX2DL"
+#define RZI_ATCMD_RX2DR       "RX2DR"
+#define RZI_ATCMD_RX2FQ       "RX2FQ"
+#define RZI_ATCMD_JN1DL       "JN1DL"
+#define RZI_ATCMD_JN2DL       "JN2DL"
+#define RZI_ATCMD_LBT         "LBT"
+#define RZI_ATCMD_LBTRSSI     "LBTRSSI"
+#define RZI_ATCMD_LBTSCANTIME "LBTSCANTIME"
+#define RZI_ATCMD_LINKCHECK   "LINKCHECK"
+#define RZI_ATCMD_TIMEREQ     "TIMEREQ"
+
 static int class_supported(enum rzi_lorawan_class device_class)
 {
 	uint32_t capabilities = rzi_lorawan_get_capabilities();
@@ -49,7 +68,9 @@ static int handle_bool(const struct rzi_at_request *request, const char *name, i
 
 	if (request->operation == RZI_AT_OP_READ) {
 		rc = get(&enabled);
-		return rc != 0 ? rc : rzi_at_respond_value("AT+%s=%d", name, enabled ? 1 : 0);
+		return rc != 0 ? rc
+			       : rzi_at_respond_value(RZI_AT_VALUE("%s", "%d"), name,
+						      enabled ? 1 : 0);
 	}
 	rc = rzi_at_lorawan_parse_bool(request->argument, &enabled);
 	if (rc != 0) {
@@ -68,7 +89,9 @@ static int handle_u32(const struct rzi_at_request *request, const char *name,
 
 	if (request->operation == RZI_AT_OP_READ) {
 		rc = get(&value);
-		return rc != 0 ? rc : rzi_at_respond_value("AT+%s=%u", name, value / scale);
+		return rc != 0 ? rc
+			       : rzi_at_respond_value(RZI_AT_VALUE("%s", "%u"), name,
+						      value / scale);
 	}
 	if (set == NULL) {
 		return -RZI_ERR_NOT_SUPPORTED;
@@ -91,7 +114,7 @@ static int handle_band(const struct rzi_at_request *request, void *user_data)
 		int rc = rzi_lorawan_get_region(&region);
 
 		return rc != 0 ? rc
-			       : rzi_at_respond_value("AT+BAND=%d",
+			       : rzi_at_respond_value(RZI_AT_VALUE(RZI_ATCMD_BAND, "%d"),
 						      rzi_at_lorawan_region_to_band(region));
 	}
 	if (context->service_started) {
@@ -134,7 +157,8 @@ static int handle_class(const struct rzi_at_request *request, void *user_data)
 			}
 			context->device_class = device_class;
 		}
-		return rzi_at_respond_value("AT+CLASS=%c", class_letter(context->device_class));
+		return rzi_at_respond_value(RZI_AT_VALUE(RZI_ATCMD_CLASS, "%c"),
+					    class_letter(context->device_class));
 	}
 	if (strcmp(request->argument, "A") == 0) {
 		device_class = RZI_LORAWAN_CLASS_A;
@@ -162,26 +186,27 @@ static int handle_class(const struct rzi_at_request *request, void *user_data)
 static int handle_adr(const struct rzi_at_request *request, void *user_data)
 {
 	ARG_UNUSED(user_data);
-	return handle_bool(request, "ADR", rzi_lorawan_get_adr, rzi_lorawan_set_adr);
+	return handle_bool(request, RZI_ATCMD_ADR, rzi_lorawan_get_adr, rzi_lorawan_set_adr);
 }
 
 static int handle_dcs(const struct rzi_at_request *request, void *user_data)
 {
 	ARG_UNUSED(user_data);
-	return handle_bool(request, "DCS", rzi_lorawan_get_duty_cycle, rzi_lorawan_set_duty_cycle);
+	return handle_bool(request, RZI_ATCMD_DCS, rzi_lorawan_get_duty_cycle,
+			   rzi_lorawan_set_duty_cycle);
 }
 
 static int handle_pnm(const struct rzi_at_request *request, void *user_data)
 {
 	ARG_UNUSED(user_data);
-	return handle_bool(request, "PNM", rzi_lorawan_get_public_network,
+	return handle_bool(request, RZI_ATCMD_PNM, rzi_lorawan_get_public_network,
 			   rzi_lorawan_set_public_network);
 }
 
 static int handle_lbt(const struct rzi_at_request *request, void *user_data)
 {
 	ARG_UNUSED(user_data);
-	return handle_bool(request, "LBT", rzi_lorawan_get_lbt, rzi_lorawan_set_lbt);
+	return handle_bool(request, RZI_ATCMD_LBT, rzi_lorawan_get_lbt, rzi_lorawan_set_lbt);
 }
 
 static int handle_dr(const struct rzi_at_request *request, void *user_data)
@@ -193,7 +218,9 @@ static int handle_dr(const struct rzi_at_request *request, void *user_data)
 	ARG_UNUSED(user_data);
 	if (request->operation == RZI_AT_OP_READ) {
 		rc = rzi_lorawan_get_data_rate(&data_rate);
-		return rc != 0 ? rc : rzi_at_respond_value("AT+DR=%u", (unsigned int)data_rate);
+		return rc != 0 ? rc
+			       : rzi_at_respond_value(RZI_AT_VALUE(RZI_ATCMD_DR, "%u"),
+						      (unsigned int)data_rate);
 	}
 	rc = rzi_at_lorawan_parse_long(request->argument, &parsed);
 	if (rc != 0 || parsed < 0 || parsed > 15) {
@@ -212,7 +239,8 @@ static int handle_txp(const struct rzi_at_request *request, void *user_data)
 	ARG_UNUSED(user_data);
 	if (request->operation == RZI_AT_OP_READ) {
 		rc = rzi_lorawan_get_tx_power(&tx_power);
-		return rc != 0 ? rc : rzi_at_respond_value("AT+TXP=%u", tx_power);
+		return rc != 0 ? rc
+			       : rzi_at_respond_value(RZI_AT_VALUE(RZI_ATCMD_TXP, "%u"), tx_power);
 	}
 	rc = rzi_at_lorawan_parse_long(request->argument, &parsed);
 	if (rc != 0 || parsed < 0 || parsed > 15) {
@@ -225,28 +253,28 @@ static int handle_txp(const struct rzi_at_request *request, void *user_data)
 static int handle_rx1dl(const struct rzi_at_request *request, void *user_data)
 {
 	ARG_UNUSED(user_data);
-	return handle_u32(request, "RX1DL", rzi_lorawan_get_rx1_delay, rzi_lorawan_set_rx1_delay,
-			  1000U);
+	return handle_u32(request, RZI_ATCMD_RX1DL, rzi_lorawan_get_rx1_delay,
+			  rzi_lorawan_set_rx1_delay, 1000U);
 }
 
 static int handle_rx2dl(const struct rzi_at_request *request, void *user_data)
 {
 	ARG_UNUSED(user_data);
-	return handle_u32(request, "RX2DL", rzi_lorawan_get_rx2_delay, rzi_lorawan_set_rx2_delay,
-			  1000U);
+	return handle_u32(request, RZI_ATCMD_RX2DL, rzi_lorawan_get_rx2_delay,
+			  rzi_lorawan_set_rx2_delay, 1000U);
 }
 
 static int handle_jn1dl(const struct rzi_at_request *request, void *user_data)
 {
 	ARG_UNUSED(user_data);
-	return handle_u32(request, "JN1DL", rzi_lorawan_get_join_accept_delay1,
+	return handle_u32(request, RZI_ATCMD_JN1DL, rzi_lorawan_get_join_accept_delay1,
 			  rzi_lorawan_set_join_accept_delay1, 1000U);
 }
 
 static int handle_jn2dl(const struct rzi_at_request *request, void *user_data)
 {
 	ARG_UNUSED(user_data);
-	return handle_u32(request, "JN2DL", rzi_lorawan_get_join_accept_delay2,
+	return handle_u32(request, RZI_ATCMD_JN2DL, rzi_lorawan_get_join_accept_delay2,
 			  rzi_lorawan_set_join_accept_delay2, 1000U);
 }
 
@@ -259,7 +287,9 @@ static int handle_rx2dr(const struct rzi_at_request *request, void *user_data)
 	ARG_UNUSED(user_data);
 	if (request->operation == RZI_AT_OP_READ) {
 		rc = rzi_lorawan_get_rx2_data_rate(&data_rate);
-		return rc != 0 ? rc : rzi_at_respond_value("AT+RX2DR=%u", (unsigned int)data_rate);
+		return rc != 0 ? rc
+			       : rzi_at_respond_value(RZI_AT_VALUE(RZI_ATCMD_RX2DR, "%u"),
+						      (unsigned int)data_rate);
 	}
 	rc = rzi_at_lorawan_parse_long(request->argument, &parsed);
 	if (rc != 0 || parsed < 0 || parsed > 15) {
@@ -272,7 +302,7 @@ static int handle_rx2dr(const struct rzi_at_request *request, void *user_data)
 static int handle_rx2fq(const struct rzi_at_request *request, void *user_data)
 {
 	ARG_UNUSED(user_data);
-	return handle_u32(request, "RX2FQ", rzi_lorawan_get_rx2_frequency,
+	return handle_u32(request, RZI_ATCMD_RX2FQ, rzi_lorawan_get_rx2_frequency,
 			  rzi_lorawan_set_rx2_frequency, 1U);
 }
 
@@ -285,7 +315,8 @@ static int handle_lbt_rssi(const struct rzi_at_request *request, void *user_data
 	ARG_UNUSED(user_data);
 	if (request->operation == RZI_AT_OP_READ) {
 		rc = rzi_lorawan_get_lbt_rssi(&rssi);
-		return rc != 0 ? rc : rzi_at_respond_value("AT+LBTRSSI=%d", rssi);
+		return rc != 0 ? rc
+			       : rzi_at_respond_value(RZI_AT_VALUE(RZI_ATCMD_LBTRSSI, "%d"), rssi);
 	}
 	rc = rzi_at_lorawan_parse_long(request->argument, &parsed);
 	if (rc != 0) {
@@ -298,7 +329,7 @@ static int handle_lbt_rssi(const struct rzi_at_request *request, void *user_data
 static int handle_lbt_scan(const struct rzi_at_request *request, void *user_data)
 {
 	ARG_UNUSED(user_data);
-	return handle_u32(request, "LBTSCANTIME", rzi_lorawan_get_lbt_scan_time,
+	return handle_u32(request, RZI_ATCMD_LBTSCANTIME, rzi_lorawan_get_lbt_scan_time,
 			  rzi_lorawan_set_lbt_scan_time, 1U);
 }
 
@@ -310,7 +341,9 @@ static int handle_timereq(const struct rzi_at_request *request, void *user_data)
 	ARG_UNUSED(user_data);
 	if (request->operation == RZI_AT_OP_READ) {
 		rc = rzi_lorawan_get_device_time_enabled(&enabled);
-		return rc != 0 ? rc : rzi_at_respond_value("AT+TIMEREQ=%d", enabled ? 1 : 0);
+		return rc != 0 ? rc
+			       : rzi_at_respond_value(RZI_AT_VALUE(RZI_ATCMD_TIMEREQ, "%d"),
+						      enabled ? 1 : 0);
 	}
 	rc = rzi_at_lorawan_parse_bool(request->argument, &enabled);
 	if (rc != 0) {
@@ -329,7 +362,9 @@ static int handle_linkcheck(const struct rzi_at_request *request, void *user_dat
 	ARG_UNUSED(user_data);
 	if (request->operation == RZI_AT_OP_READ) {
 		rc = rzi_lorawan_get_link_check_mode(&mode);
-		return rc != 0 ? rc : rzi_at_respond_value("AT+LINKCHECK=%u", (unsigned int)mode);
+		return rc != 0 ? rc
+			       : rzi_at_respond_value(RZI_AT_VALUE(RZI_ATCMD_LINKCHECK, "%u"),
+						      (unsigned int)mode);
 	}
 	rc = rzi_at_lorawan_parse_long(request->argument, &parsed);
 	if (rc != 0 || parsed < 0 || parsed > 2) {
@@ -341,7 +376,7 @@ static int handle_linkcheck(const struct rzi_at_request *request, void *user_dat
 
 static const struct rzi_at_command commands[] = {
 	{
-		.name = "BAND",
+		.name = RZI_ATCMD_BAND,
 		.help = "get or set the active region (0 = EU433, 1 = CN470, 2 = RU864, "
 			"3 = IN865, 4 = EU868, 5 = US915, 6 = AU915, 7 = KR920, "
 			"8 = AS923-1, 9 = AS923-2, 10 = AS923-3, 11 = AS923-4, "
@@ -350,103 +385,103 @@ static const struct rzi_at_command commands[] = {
 		.handler = handle_band,
 	},
 	{
-		.name = "CLASS",
+		.name = RZI_ATCMD_CLASS,
 		.help = "get or set the device class (A = class A, B = class B, C = class C)",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_class,
 	},
 	{
-		.name = "ADR",
+		.name = RZI_ATCMD_ADR,
 		.help = "get or set the adaptive data rate setting (0 = off, 1 = on)",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_adr,
 	},
 	{
-		.name = "DCS",
+		.name = RZI_ATCMD_DCS,
 		.help = "get or set the ETSI duty cycle setting (0 = disabled, 1 = enabled)",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_dcs,
 	},
 	{
-		.name = "DR",
+		.name = RZI_ATCMD_DR,
 		.help = "get or set the data rate",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_dr,
 	},
 	{
-		.name = "TXP",
+		.name = RZI_ATCMD_TXP,
 		.help = "get or set the transmitting power",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_txp,
 	},
 	{
-		.name = "PNM",
+		.name = RZI_ATCMD_PNM,
 		.help = "get or set the public network mode (0 = off, 1 = on)",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_pnm,
 	},
 	{
-		.name = "RX1DL",
+		.name = RZI_ATCMD_RX1DL,
 		.help = "get or set the delay between the end of TX and RX window 1 in seconds",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_rx1dl,
 	},
 	{
-		.name = "RX2DL",
+		.name = RZI_ATCMD_RX2DL,
 		.help = "get or set the delay between the end of TX and RX window 2 in seconds",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_rx2dl,
 	},
 	{
-		.name = "RX2DR",
+		.name = RZI_ATCMD_RX2DR,
 		.help = "get or set the RX2 window data rate",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_rx2dr,
 	},
 	{
-		.name = "RX2FQ",
+		.name = RZI_ATCMD_RX2FQ,
 		.help = "get or set the RX2 window frequency (Hz)",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_rx2fq,
 	},
 	{
-		.name = "JN1DL",
+		.name = RZI_ATCMD_JN1DL,
 		.help = "get or set the join accept delay for Rx window 1 in seconds",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_jn1dl,
 	},
 	{
-		.name = "JN2DL",
+		.name = RZI_ATCMD_JN2DL,
 		.help = "get or set the join accept delay for Rx window 2 in seconds",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_jn2dl,
 	},
 	{
-		.name = "LBT",
+		.name = RZI_ATCMD_LBT,
 		.help = "get or set LoRaWAN LBT (0 = disabled, 1 = enabled)",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_lbt,
 	},
 	{
-		.name = "LBTRSSI",
+		.name = RZI_ATCMD_LBTRSSI,
 		.help = "get or set the LoRaWAN LBT RSSI threshold",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_lbt_rssi,
 	},
 	{
-		.name = "LBTSCANTIME",
+		.name = RZI_ATCMD_LBTSCANTIME,
 		.help = "get or set the LoRaWAN LBT scan time in milliseconds",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_lbt_scan,
 	},
 	{
-		.name = "LINKCHECK",
+		.name = RZI_ATCMD_LINKCHECK,
 		.help = "get or set the link check setting (0 = disabled, 1 = once, 2 = everytime)",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_linkcheck,
 	},
 	{
-		.name = "TIMEREQ",
+		.name = RZI_ATCMD_TIMEREQ,
 		.help = "request the current date and time (0 = disabled, 1 = enabled)",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_timereq,

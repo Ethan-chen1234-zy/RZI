@@ -9,6 +9,9 @@
 
 #include "at_lorawan_priv.h"
 
+#define RZI_ATCMD_RSSI "RSSI"
+#define RZI_ATCMD_SNR  "SNR"
+
 static int handle_rssi(const struct rzi_at_request *request, void *user_data)
 {
 	int16_t rssi;
@@ -17,7 +20,7 @@ static int handle_rssi(const struct rzi_at_request *request, void *user_data)
 	ARG_UNUSED(request);
 	ARG_UNUSED(user_data);
 	rc = rzi_lorawan_get_last_rssi(&rssi);
-	return rc != 0 ? rc : rzi_at_respond_value("AT+RSSI=%d", rssi);
+	return rc != 0 ? rc : rzi_at_respond_value(RZI_AT_VALUE(RZI_ATCMD_RSSI, "%d"), rssi);
 }
 
 static int handle_snr(const struct rzi_at_request *request, void *user_data)
@@ -28,18 +31,18 @@ static int handle_snr(const struct rzi_at_request *request, void *user_data)
 	ARG_UNUSED(request);
 	ARG_UNUSED(user_data);
 	rc = rzi_lorawan_get_last_snr(&snr);
-	return rc != 0 ? rc : rzi_at_respond_value("AT+SNR=%d", snr / 4);
+	return rc != 0 ? rc : rzi_at_respond_value(RZI_AT_VALUE(RZI_ATCMD_SNR, "%d"), snr / 4);
 }
 
 static const struct rzi_at_command commands[] = {
 	{
-		.name = "RSSI",
+		.name = RZI_ATCMD_RSSI,
 		.help = "get the RSSI of the last received packet",
 		.allowed_operations = RZI_AT_ALLOW_READ,
 		.handler = handle_rssi,
 	},
 	{
-		.name = "SNR",
+		.name = RZI_ATCMD_SNR,
 		.help = "get the SNR of the last received packet",
 		.allowed_operations = RZI_AT_ALLOW_READ,
 		.handler = handle_snr,

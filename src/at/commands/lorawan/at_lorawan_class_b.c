@@ -11,6 +11,8 @@
 
 #include "at_lorawan_priv.h"
 
+#define RZI_ATCMD_PGSLOT "PGSLOT"
+
 static int handle_pgslot(const struct rzi_at_request *request, void *user_data)
 {
 	uint8_t periodicity;
@@ -20,7 +22,9 @@ static int handle_pgslot(const struct rzi_at_request *request, void *user_data)
 	ARG_UNUSED(user_data);
 	if (request->operation == RZI_AT_OP_READ) {
 		rc = rzi_lorawan_get_ping_slot_periodicity(&periodicity);
-		return rc != 0 ? rc : rzi_at_respond_value("AT+PGSLOT=%u", periodicity);
+		return rc != 0 ? rc
+			       : rzi_at_respond_value(RZI_AT_VALUE(RZI_ATCMD_PGSLOT, "%u"),
+						      periodicity);
 	}
 	rc = rzi_at_lorawan_parse_long(request->argument, &parsed);
 	if (rc != 0 || parsed < 0 || parsed > 7) {
@@ -89,7 +93,7 @@ static int handle_ltime(const struct rzi_at_request *request, void *user_data)
 
 static const struct rzi_at_command commands[] = {
 	{
-		.name = "PGSLOT",
+		.name = RZI_ATCMD_PGSLOT,
 		.help = "get or set the unicast ping slot periodicity (0-7)",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_pgslot,

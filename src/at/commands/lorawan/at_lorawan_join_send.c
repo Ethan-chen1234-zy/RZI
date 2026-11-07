@@ -16,6 +16,14 @@
 
 #include "at_lorawan_priv.h"
 
+#define RZI_ATCMD_NJM  "NJM"
+#define RZI_ATCMD_NJS  "NJS"
+#define RZI_ATCMD_CFM  "CFM"
+#define RZI_ATCMD_CFS  "CFS"
+#define RZI_ATCMD_JOIN "JOIN"
+#define RZI_ATCMD_RECV "RECV"
+#define RZI_ATCMD_RETY "RETY"
+
 struct join_parameters {
 	int32_t start;
 	int32_t auto_join;
@@ -35,7 +43,7 @@ static int handle_njm(const struct rzi_at_request *request, void *user_data)
 		if (rc != 0) {
 			return rc;
 		}
-		return rzi_at_respond_value("AT+NJM=%u",
+		return rzi_at_respond_value(RZI_AT_VALUE(RZI_ATCMD_NJM, "%u"),
 					    mode == RZI_LORAWAN_ACTIVATION_ABP ? 0U : 1U);
 	}
 	rc = rzi_at_lorawan_parse_long(request->argument, &parsed);
@@ -51,7 +59,8 @@ static int handle_njs(const struct rzi_at_request *request, void *user_data)
 {
 	ARG_UNUSED(request);
 	ARG_UNUSED(user_data);
-	return rzi_at_respond_value("AT+NJS=%d", rzi_at_lorawan_is_joined() ? 1 : 0);
+	return rzi_at_respond_value(RZI_AT_VALUE(RZI_ATCMD_NJS, "%d"),
+				    rzi_at_lorawan_is_joined() ? 1 : 0);
 }
 
 static int handle_cfm(const struct rzi_at_request *request, void *user_data)
@@ -62,7 +71,9 @@ static int handle_cfm(const struct rzi_at_request *request, void *user_data)
 	ARG_UNUSED(user_data);
 	if (request->operation == RZI_AT_OP_READ) {
 		rc = rzi_lorawan_get_confirmed(&enabled);
-		return rc != 0 ? rc : rzi_at_respond_value("AT+CFM=%u", enabled ? 1U : 0U);
+		return rc != 0 ? rc
+			       : rzi_at_respond_value(RZI_AT_VALUE(RZI_ATCMD_CFM, "%u"),
+						      enabled ? 1U : 0U);
 	}
 	rc = rzi_at_lorawan_parse_bool(request->argument, &enabled);
 	if (rc == 0) {
@@ -75,8 +86,9 @@ static int handle_cfs(const struct rzi_at_request *request, void *user_data)
 {
 	ARG_UNUSED(request);
 	ARG_UNUSED(user_data);
-	return rzi_at_respond_value(
-		"AT+CFS=%d", atomic_get(&rzi_at_lorawan_context.confirmation_status) ? 1 : 0);
+	return rzi_at_respond_value(RZI_AT_VALUE(RZI_ATCMD_CFS, "%d"),
+				    atomic_get(&rzi_at_lorawan_context.confirmation_status) ? 1
+											    : 0);
 }
 
 static int parse_join_parameters(const char *argument, struct join_parameters *parameters)
@@ -141,8 +153,8 @@ static int handle_join(const struct rzi_at_request *request, void *user_data)
 		if (rc != 0) {
 			return rc;
 		}
-		return rzi_at_respond_value("AT+JOIN=1:%u:%u:%u", auto_join ? 1U : 0U, interval,
-					    attempts);
+		return rzi_at_respond_value(RZI_AT_VALUE(RZI_ATCMD_JOIN, "1:%u:%u:%u"),
+					    auto_join ? 1U : 0U, interval, attempts);
 	}
 	if (request->operation == RZI_AT_OP_RUN) {
 		return respond_to_result(rzi_at_lorawan_join_start());
@@ -244,10 +256,10 @@ static int handle_recv(const struct rzi_at_request *request, void *user_data)
 	k_mutex_unlock(&context->state_lock);
 
 	if (!valid) {
-		return rzi_at_respond_value("AT+RECV=");
+		return rzi_at_respond_value(RZI_AT_VALUE(RZI_ATCMD_RECV, ""));
 	}
 	rzi_at_lorawan_bin_to_hex(data, size, hex);
-	return rzi_at_respond_value("AT+RECV=%u:%s", port, hex);
+	return rzi_at_respond_value(RZI_AT_VALUE(RZI_ATCMD_RECV, "%u:%s"), port, hex);
 }
 
 static int handle_rety(const struct rzi_at_request *request, void *user_data)
@@ -259,7 +271,8 @@ static int handle_rety(const struct rzi_at_request *request, void *user_data)
 	ARG_UNUSED(user_data);
 	if (request->operation == RZI_AT_OP_READ) {
 		rc = rzi_lorawan_get_retries(&retries);
-		return rc != 0 ? rc : rzi_at_respond_value("AT+RETY=%u", retries);
+		return rc != 0 ? rc
+			       : rzi_at_respond_value(RZI_AT_VALUE(RZI_ATCMD_RETY, "%u"), retries);
 	}
 	rc = rzi_at_lorawan_parse_long(request->argument, &parsed);
 	if (rc != 0 || parsed < 0 || parsed > 7) {
@@ -310,32 +323,32 @@ static int handle_lpsend(const struct rzi_at_request *request, void *user_data)
 
 static const struct rzi_at_command commands[] = {
 	{
-		.name = "NJM",
+		.name = RZI_ATCMD_NJM,
 		.help = "get or set the network join mode (0 = ABP, 1 = OTAA)",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_njm,
 	},
 	{
-		.name = "NJS",
+		.name = RZI_ATCMD_NJS,
 		.help = "get the join status (0 = not joined, 1 = joined)",
 		.allowed_operations = RZI_AT_ALLOW_READ,
 		.handler = handle_njs,
 	},
 	{
-		.name = "CFM",
+		.name = RZI_ATCMD_CFM,
 		.help = "get or set the confirmation mode (0 = OFF, 1 = ON)",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_cfm,
 	},
 	{
-		.name = "CFS",
+		.name = RZI_ATCMD_CFS,
 		.help = "get the confirmation status of the last AT+SEND (0 = failure, 1 = "
 			"success)",
 		.allowed_operations = RZI_AT_ALLOW_READ,
 		.handler = handle_cfs,
 	},
 	{
-		.name = "JOIN",
+		.name = RZI_ATCMD_JOIN,
 		.help = "join network",
 		.allowed_operations = RZI_AT_ALLOW_RUN | RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_join,
@@ -347,13 +360,13 @@ static const struct rzi_at_command commands[] = {
 		.handler = handle_send,
 	},
 	{
-		.name = "RECV",
+		.name = RZI_ATCMD_RECV,
 		.help = "print the last received data in hex format",
 		.allowed_operations = RZI_AT_ALLOW_READ,
 		.handler = handle_recv,
 	},
 	{
-		.name = "RETY",
+		.name = RZI_ATCMD_RETY,
 		.help = "get or set the number of retransmission of confirm packet data",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_rety,

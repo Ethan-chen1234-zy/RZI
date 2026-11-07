@@ -182,6 +182,18 @@ __must_check int rzi_at_receive(const uint8_t *data, size_t size);
 __must_check int rzi_at_respond_status(enum rzi_at_status status);
 
 /**
+ * @brief Format string for an `AT+<name>=<spec>` value reply.
+ *
+ * @param name Registered command name, a string literal without `AT+`.
+ * @param spec printf text after `=`. An empty literal produces `AT+<name>=`.
+ *
+ * Both arguments must be string literals so the result stays a format string
+ * for rzi_at_respond_value(). Define the name once and use that same token for
+ * struct rzi_at_command.name.
+ */
+#define RZI_AT_VALUE(name, spec) "AT+" name "=" spec
+
+/**
  * @brief Write a formatted AT value followed by OK.
  *
  * @param format printf-style format string.

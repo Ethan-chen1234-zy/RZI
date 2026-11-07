@@ -13,6 +13,8 @@
 
 #include "at_lorawan_priv.h"
 
+#define RZI_ATCMD_CERTIF "CERTIF"
+
 static int handle_certif(const struct rzi_at_request *request, void *user_data)
 {
 	bool enabled;
@@ -21,7 +23,9 @@ static int handle_certif(const struct rzi_at_request *request, void *user_data)
 	ARG_UNUSED(user_data);
 	if (request->operation == RZI_AT_OP_READ) {
 		rc = rzi_lorawan_get_certification_mode(&enabled);
-		return rc != 0 ? rc : rzi_at_respond_value("AT+CERTIF=%d", enabled ? 1 : 0);
+		return rc != 0 ? rc
+			       : rzi_at_respond_value(RZI_AT_VALUE(RZI_ATCMD_CERTIF, "%d"),
+						      enabled ? 1 : 0);
 	}
 	rc = rzi_at_lorawan_parse_bool(request->argument, &enabled);
 	if (rc != 0) {
@@ -33,7 +37,7 @@ static int handle_certif(const struct rzi_at_request *request, void *user_data)
 
 static const struct rzi_at_command commands[] = {
 	{
-		.name = "CERTIF",
+		.name = RZI_ATCMD_CERTIF,
 		.help = "set the module in LoRaWAN certification mode (0 = normal, 1 = "
 			"certification)",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,

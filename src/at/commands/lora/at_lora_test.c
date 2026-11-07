@@ -13,6 +13,8 @@
 
 #include "at_lora_priv.h"
 
+#define RZI_ATCMD_TCONF "TCONF"
+
 static int respond_ok(int rc)
 {
 	return rc == 0 ? rzi_at_respond_status(RZI_AT_STATUS_OK) : rc;
@@ -92,10 +94,10 @@ static int handle_tconf(const struct rzi_at_request *request, void *user_data)
 		return rc;
 	}
 	if (request->operation == RZI_AT_OP_READ) {
-		return rzi_at_respond_value("AT+TCONF=%u:%u:%u:%u:%u:%d", config.frequency_hz,
-					    config.spreading_factor, config.bandwidth,
-					    config.coding_rate, config.preamble_length,
-					    config.tx_power_dbm);
+		return rzi_at_respond_value(RZI_AT_VALUE(RZI_ATCMD_TCONF, "%u:%u:%u:%u:%u:%d"),
+					    config.frequency_hz, config.spreading_factor,
+					    config.bandwidth, config.coding_rate,
+					    config.preamble_length, config.tx_power_dbm);
 	}
 	cursor = request->argument;
 	while (*cursor != '\0' && count < ARRAY_SIZE(values)) {
@@ -232,7 +234,7 @@ static const struct rzi_at_command commands[] = {
 		.handler = handle_trx,
 	},
 	{
-		.name = "TCONF",
+		.name = RZI_ATCMD_TCONF,
 		.help = "configure LoRa RF test (Freq:SF:BW:CR:PPL:PTP)",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_tconf,

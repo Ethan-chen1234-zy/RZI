@@ -13,6 +13,23 @@
 
 #include "at_lora_priv.h"
 
+#define RZI_ATCMD_P2P      "P2P"
+#define RZI_ATCMD_PFREQ    "PFREQ"
+#define RZI_ATCMD_PSF      "PSF"
+#define RZI_ATCMD_PBW      "PBW"
+#define RZI_ATCMD_PCR      "PCR"
+#define RZI_ATCMD_PPL      "PPL"
+#define RZI_ATCMD_PTP      "PTP"
+#define RZI_ATCMD_PRECV    "PRECV"
+#define RZI_ATCMD_CAD      "CAD"
+#define RZI_ATCMD_ENCRY    "ENCRY"
+#define RZI_ATCMD_ENCKEY   "ENCKEY"
+#define RZI_ATCMD_CRYPIV   "CRYPIV"
+#define RZI_ATCMD_IQINVER  "IQINVER"
+#define RZI_ATCMD_SYNCWORD "SYNCWORD"
+#define RZI_ATCMD_PBR      "PBR"
+#define RZI_ATCMD_PFDEV    "PFDEV"
+
 static int respond_ok(int rc)
 {
 	return rc == 0 ? rzi_at_respond_status(RZI_AT_STATUS_OK) : rc;
@@ -54,7 +71,7 @@ static int write_u32(const struct rzi_at_request *request, const char *name, uin
 		return rc;
 	}
 	if (request->operation == RZI_AT_OP_READ) {
-		return rzi_at_respond_value("AT+%s=%u", name, load(&config));
+		return rzi_at_respond_value(RZI_AT_VALUE("%s", "%u"), name, load(&config));
 	}
 	rc = rzi_at_lora_parse_long(request->argument, &parsed);
 	if (rc != 0 || parsed < (long)min || parsed > (long)max) {
@@ -76,7 +93,7 @@ static int write_bool(const struct rzi_at_request *request, const char *name,
 		return rc;
 	}
 	if (request->operation == RZI_AT_OP_READ) {
-		return rzi_at_respond_value("AT+%s=%d", name, load(&config) ? 1 : 0);
+		return rzi_at_respond_value(RZI_AT_VALUE("%s", "%d"), name, load(&config) ? 1 : 0);
 	}
 	rc = rzi_at_lora_parse_bool(request->argument, &enabled);
 	if (rc != 0) {
@@ -94,7 +111,7 @@ static int write_key(const struct rzi_at_request *request, const char *name, uin
 
 	if (request->operation == RZI_AT_OP_READ) {
 		rzi_at_lora_bin_to_hex(field, 16U, hex);
-		return rzi_at_respond_value("AT+%s=%s", name, hex);
+		return rzi_at_respond_value(RZI_AT_VALUE("%s", "%s"), name, hex);
 	}
 	rc = rzi_at_lora_hex_to_bin(request->argument, field, 16U);
 	if (rc != 0) {
@@ -233,10 +250,11 @@ static int handle_p2p(const struct rzi_at_request *request, void *user_data)
 	if (request->operation == RZI_AT_OP_READ) {
 		rc = rzi_lora_get_config(&config);
 		return rc != 0 ? rc
-			       : rzi_at_respond_value("AT+P2P=%u:%u:%u:%u:%u:%d",
-						      config.frequency_hz, config.spreading_factor,
-						      config.bandwidth, config.coding_rate,
-						      config.preamble_length, config.tx_power_dbm);
+			       : rzi_at_respond_value(
+					 RZI_AT_VALUE(RZI_ATCMD_P2P, "%u:%u:%u:%u:%u:%d"),
+					 config.frequency_hz, config.spreading_factor,
+					 config.bandwidth, config.coding_rate,
+					 config.preamble_length, config.tx_power_dbm);
 	}
 	rc = parse_colon_u32(request->argument, values, ARRAY_SIZE(values));
 	if (rc != 0) {
@@ -258,73 +276,73 @@ static int handle_p2p(const struct rzi_at_request *request, void *user_data)
 static int handle_pfreq(const struct rzi_at_request *request, void *user_data)
 {
 	ARG_UNUSED(user_data);
-	return write_u32(request, "PFREQ", 150000000U, 960000000U, set_freq, get_freq);
+	return write_u32(request, RZI_ATCMD_PFREQ, 150000000U, 960000000U, set_freq, get_freq);
 }
 
 static int handle_psf(const struct rzi_at_request *request, void *user_data)
 {
 	ARG_UNUSED(user_data);
-	return write_u32(request, "PSF", 5U, 12U, set_sf, get_sf);
+	return write_u32(request, RZI_ATCMD_PSF, 5U, 12U, set_sf, get_sf);
 }
 
 static int handle_pbw(const struct rzi_at_request *request, void *user_data)
 {
 	ARG_UNUSED(user_data);
-	return write_u32(request, "PBW", 0U, 960000000U, set_bw, get_bw);
+	return write_u32(request, RZI_ATCMD_PBW, 0U, 960000000U, set_bw, get_bw);
 }
 
 static int handle_pcr(const struct rzi_at_request *request, void *user_data)
 {
 	ARG_UNUSED(user_data);
-	return write_u32(request, "PCR", 0U, 3U, set_cr, get_cr);
+	return write_u32(request, RZI_ATCMD_PCR, 0U, 3U, set_cr, get_cr);
 }
 
 static int handle_ppl(const struct rzi_at_request *request, void *user_data)
 {
 	ARG_UNUSED(user_data);
-	return write_u32(request, "PPL", 5U, 65535U, set_pl, get_pl);
+	return write_u32(request, RZI_ATCMD_PPL, 5U, 65535U, set_pl, get_pl);
 }
 
 static int handle_ptp(const struct rzi_at_request *request, void *user_data)
 {
 	ARG_UNUSED(user_data);
-	return write_u32(request, "PTP", 5U, 22U, set_tp, get_tp);
+	return write_u32(request, RZI_ATCMD_PTP, 5U, 22U, set_tp, get_tp);
 }
 
 static int handle_syncword(const struct rzi_at_request *request, void *user_data)
 {
 	ARG_UNUSED(user_data);
-	return write_u32(request, "SYNCWORD", 0U, 65535U, set_sw, get_sw);
+	return write_u32(request, RZI_ATCMD_SYNCWORD, 0U, 65535U, set_sw, get_sw);
 }
 
 static int handle_pbr(const struct rzi_at_request *request, void *user_data)
 {
 	ARG_UNUSED(user_data);
-	return write_u32(request, "PBR", 600U, 300000U, set_br, get_br);
+	return write_u32(request, RZI_ATCMD_PBR, 600U, 300000U, set_br, get_br);
 }
 
 static int handle_pfdev(const struct rzi_at_request *request, void *user_data)
 {
 	ARG_UNUSED(user_data);
-	return write_u32(request, "PFDEV", 600U, 200000U, set_dev, get_dev);
+	return write_u32(request, RZI_ATCMD_PFDEV, 600U, 200000U, set_dev, get_dev);
 }
 
 static int handle_encry(const struct rzi_at_request *request, void *user_data)
 {
 	ARG_UNUSED(user_data);
-	return write_bool(request, "ENCRY", set_enc, get_enc);
+	return write_bool(request, RZI_ATCMD_ENCRY, set_enc, get_enc);
 }
 
 static int handle_iqinver(const struct rzi_at_request *request, void *user_data)
 {
 	ARG_UNUSED(user_data);
-	return write_bool(request, "IQINVER", set_iq, get_iq);
+	return write_bool(request, RZI_ATCMD_IQINVER, set_iq, get_iq);
 }
 
 static int handle_cad(const struct rzi_at_request *request, void *user_data)
 {
 	ARG_UNUSED(user_data);
-	return write_bool(request, "CAD", set_cad, get_cad);
+	return write_bool(request, RZI_ATCMD_CAD, set_cad, get_cad);
 }
 
 static int handle_enckey(const struct rzi_at_request *request, void *user_data)
@@ -336,7 +354,7 @@ static int handle_enckey(const struct rzi_at_request *request, void *user_data)
 	if (rc != 0) {
 		return rc;
 	}
-	return write_key(request, "ENCKEY", config.key, &config);
+	return write_key(request, RZI_ATCMD_ENCKEY, config.key, &config);
 }
 
 static int handle_crypiv(const struct rzi_at_request *request, void *user_data)
@@ -348,7 +366,7 @@ static int handle_crypiv(const struct rzi_at_request *request, void *user_data)
 	if (rc != 0) {
 		return rc;
 	}
-	return write_key(request, "CRYPIV", config.iv, &config);
+	return write_key(request, RZI_ATCMD_CRYPIV, config.iv, &config);
 }
 
 static int handle_psend(const struct rzi_at_request *request, void *user_data)
@@ -382,7 +400,8 @@ static int handle_precv(const struct rzi_at_request *request, void *user_data)
 
 	ARG_UNUSED(user_data);
 	if (request->operation == RZI_AT_OP_READ) {
-		return rzi_at_respond_value("AT+PRECV=%d", rzi_lora_receive_active() ? 65535 : 0);
+		return rzi_at_respond_value(RZI_AT_VALUE(RZI_ATCMD_PRECV, "%d"),
+					    rzi_lora_receive_active() ? 65535 : 0);
 	}
 	rc = rzi_at_lora_parse_long(request->argument, &parsed);
 	if (rc != 0 || parsed < 0 || parsed > 65535) {
@@ -397,43 +416,43 @@ static int handle_precv(const struct rzi_at_request *request, void *user_data)
 
 static const struct rzi_at_command commands[] = {
 	{
-		.name = "P2P",
+		.name = RZI_ATCMD_P2P,
 		.help = "get or set the P2P configuration (Freq:SF:BW:CR:PPL:PTP)",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_p2p,
 	},
 	{
-		.name = "PFREQ",
+		.name = RZI_ATCMD_PFREQ,
 		.help = "get or set the P2P frequency (Hz)",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_pfreq,
 	},
 	{
-		.name = "PSF",
+		.name = RZI_ATCMD_PSF,
 		.help = "get or set the P2P spreading factor (5-12)",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_psf,
 	},
 	{
-		.name = "PBW",
+		.name = RZI_ATCMD_PBW,
 		.help = "get or set the P2P bandwidth (0-9 for LoRa, Hz for FSK)",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_pbw,
 	},
 	{
-		.name = "PCR",
+		.name = RZI_ATCMD_PCR,
 		.help = "get or set the P2P coding rate (0-3)",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_pcr,
 	},
 	{
-		.name = "PPL",
+		.name = RZI_ATCMD_PPL,
 		.help = "get or set the P2P preamble length",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_ppl,
 	},
 	{
-		.name = "PTP",
+		.name = RZI_ATCMD_PTP,
 		.help = "get or set the P2P TX power (dBm)",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_ptp,
@@ -445,55 +464,55 @@ static const struct rzi_at_command commands[] = {
 		.handler = handle_psend,
 	},
 	{
-		.name = "PRECV",
+		.name = RZI_ATCMD_PRECV,
 		.help = "set the P2P receive window (0 = stop, 65535 = continuous)",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_precv,
 	},
 	{
-		.name = "CAD",
+		.name = RZI_ATCMD_CAD,
 		.help = "get or set P2P CAD (0 = off, 1 = on)",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_cad,
 	},
 	{
-		.name = "ENCRY",
+		.name = RZI_ATCMD_ENCRY,
 		.help = "get or set P2P encryption (0 = off, 1 = on)",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_encry,
 	},
 	{
-		.name = "ENCKEY",
+		.name = RZI_ATCMD_ENCKEY,
 		.help = "get or set the P2P encryption key (16 bytes in hex)",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_enckey,
 	},
 	{
-		.name = "CRYPIV",
+		.name = RZI_ATCMD_CRYPIV,
 		.help = "get or set the P2P encryption IV (16 bytes in hex)",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_crypiv,
 	},
 	{
-		.name = "IQINVER",
+		.name = RZI_ATCMD_IQINVER,
 		.help = "get or set P2P IQ inversion (0 = off, 1 = on)",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_iqinver,
 	},
 	{
-		.name = "SYNCWORD",
+		.name = RZI_ATCMD_SYNCWORD,
 		.help = "get or set the P2P sync word",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_syncword,
 	},
 	{
-		.name = "PBR",
+		.name = RZI_ATCMD_PBR,
 		.help = "get or set the P2P FSK bitrate (bps)",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_pbr,
 	},
 	{
-		.name = "PFDEV",
+		.name = RZI_ATCMD_PFDEV,
 		.help = "get or set the P2P FSK frequency deviation (Hz)",
 		.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 		.handler = handle_pfdev,
