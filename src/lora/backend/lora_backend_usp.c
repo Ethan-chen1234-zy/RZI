@@ -322,7 +322,10 @@ static int usp_start(enum rzi_lora_modulation value)
 {
 	int rc;
 
-	rzi_usp_init();
+	rc = rzi_usp_init();
+	if (rc != 0) {
+		return rc;
+	}
 	rzi_usp_lock();
 	rc = open_radio();
 	if (rc == 0) {

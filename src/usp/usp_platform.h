@@ -11,6 +11,8 @@
 
 #include <smtc_modem_api.h>
 
+struct device;
+
 /**
  * Called in the USP thread with the USP lock held, once per LBM event.
  * @p event is NULL and @p error is a negative RZI_ERR_* value when the
@@ -20,9 +22,20 @@ typedef void (*rzi_usp_event_handler_t)(const smtc_modem_event_t *event, int err
 
 /**
  * Initialize the USP platform, the radio access controller and LoRa Basics
- * Modem. Later calls return immediately. Thread context only.
+ * Modem and verify device/modem readiness before committing initialization.
+ * Return 0 on success or a negative RZI_ERR_* value. Failed calls may be
+ * retried; later calls after success return immediately. Thread context only.
  */
-void rzi_usp_init(void);
+int rzi_usp_init(void);
+
+/** Board readiness seam; weak default calls device_is_ready(). */
+bool rzi_usp_radio_is_ready(const struct device *radio);
+
+/** Initialize/resume the shared platform and retain one backend reference. */
+int rzi_usp_acquire(void);
+
+/** Release a reference; the last release sleeps the radio and parks the engine. */
+int rzi_usp_release(void);
 
 /** Serialize USP API calls with the USP engine thread. Recursive. */
 void rzi_usp_lock(void);

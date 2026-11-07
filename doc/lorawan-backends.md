@@ -227,7 +227,11 @@ LoRaWAN backend and the raw LoRa backend. It is backend support, not a feature
 module: it has no public header under `include/rzi/`, and `src/usp/` is on the
 library include path so backends write `#include "usp_platform.h"`.
 
-- `rzi_usp_init()` runs the platform, RAC, and modem init once;
+- `rzi_usp_init()` validates the radio and modem and runs platform, RAC, and
+  modem initialization once; failed initialization remains retryable;
+- `rzi_usp_acquire()` / `rzi_usp_release()` reference-count LoRaWAN and raw
+  LoRa users. The final release sleeps the radio and parks the USP engine;
+  the next acquire resumes it without repeating vendor initialization;
 - `rzi_usp_lock()` / `rzi_usp_unlock()` take the recursive `rac_api_mutex`;
   unlock wakes the USP thread so queued requests run promptly;
 - `rzi_usp_set_event_handler()` routes LBM events to the LoRaWAN backend and

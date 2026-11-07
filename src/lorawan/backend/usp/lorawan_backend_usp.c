@@ -696,6 +696,7 @@ static int usp_start(enum rzi_lorawan_region selected_region, bool bypass,
 		     rzi_lorawan_event_sink_t sink)
 {
 	smtc_modem_region_t selected;
+	int rc;
 
 	if (map_region(selected_region, &selected) != 0 || sink == NULL) {
 		return -RZI_ERR_INVALID;
@@ -706,7 +707,10 @@ static int usp_start(enum rzi_lorawan_region selected_region, bool bypass,
 #ifdef CONFIG_RZI_LORAWAN_FUOTA
 	lorawan_register_fuota_callbacks(&usp_fuota_cb);
 #endif
-	rzi_usp_init();
+	rc = rzi_usp_init();
+	if (rc != 0) {
+		return rc;
+	}
 	rzi_usp_lock();
 	rzi_usp_set_event_handler(handle_event);
 	rzi_usp_unlock();
