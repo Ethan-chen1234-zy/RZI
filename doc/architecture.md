@@ -480,7 +480,7 @@ allowed operations, and handlers have one source of truth.
 `CONFIG_RZI_AT` does not depend on LoRaWAN or UART. Command packages such as
 `CONFIG_RZI_AT_COMMAND_LORAWAN` depend only on the RZI service they expose, and
 adapters such as `CONFIG_RZI_AT_ADAPTER_UART` are selected independently.
-Applications may register static-lifetime commands before `rzi_at_start()`.
+Applications may register static-lifetime commands before `rzi_at_init()`.
 
 ## 10. Configuration and NVM
 

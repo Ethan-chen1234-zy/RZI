@@ -202,14 +202,15 @@ rzi_lorawan_join()
 rzi_lorawan_send()
 rzi_lorawan_register_callbacks()
 rzi_power_set_pm_enabled()
-rzi_at_uart_start()
+rzi_at_uart_init()
 ```
 
-- Use `init` to bring up a service and `start` when processing begins
-  without a separate configuration argument. `rzi_init()` is limited to
-  parameter-free shared infrastructure that is safe to initialize eagerly
-  and repeatedly. `rzi_lorawan_init()` brings up LoRaWAN for one region.
-  Raw LoRa uses `rzi_lora_init()`. AT still uses `start`.
+- Use `init` to bring up a service. Do not expose a separate `start`
+  operation unless initialization and processing are distinct lifecycle
+  phases. `rzi_init()` is limited to parameter-free shared infrastructure
+  that is safe to initialize eagerly and repeatedly. LoRaWAN, raw LoRa, AT,
+  and other services requiring configuration or active resources own their
+  service-specific initialization.
 - Use `get_<noun>` when copying into an output parameter.
 - Use `is_<state>` for boolean queries.
 - Use `set_<noun>` only when changing an existing setting.

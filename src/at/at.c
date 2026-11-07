@@ -24,7 +24,7 @@ K_THREAD_STACK_DEFINE(at_stack, CONFIG_RZI_AT_THREAD_STACK_SIZE);
 
 static struct k_thread at_thread;
 static struct rzi_at_io active_io;
-static atomic_t started;
+static atomic_t active;
 static atomic_t rx_overflow;
 static atomic_t locked;
 static atomic_t echo_enabled = ATOMIC_INIT(IS_ENABLED(CONFIG_RZI_AT_ECHO));
@@ -101,7 +101,7 @@ static int write_all(const char *text)
 
 int rzi_at_write_raw(const char *text)
 {
-	if (!atomic_get(&started) || text == NULL) {
+	if (!atomic_get(&active) || text == NULL) {
 		return -RZI_ERR_INVALID;
 	}
 	return write_all(text);
@@ -119,7 +119,7 @@ int rzi_at_respond_status(enum rzi_at_status status)
 	};
 	char buffer[48];
 
-	if (!atomic_get(&started) || status < 0 || status >= ARRAY_SIZE(names)) {
+	if (!atomic_get(&active) || status < 0 || status >= ARRAY_SIZE(names)) {
 		return -RZI_ERR_INVALID;
 	}
 	(void)snprintk(buffer, sizeof(buffer), "\r\n%s\r\n", names[status]);
@@ -155,7 +155,7 @@ int rzi_at_respond_value(const char *format, ...)
 	va_list args;
 	int rc;
 
-	if (!atomic_get(&started) || format == NULL) {
+	if (!atomic_get(&active) || format == NULL) {
 		return -RZI_ERR_INVALID;
 	}
 	va_start(args, format);
@@ -169,7 +169,7 @@ int rzi_at_publish_event(const char *format, ...)
 	va_list args;
 	int rc;
 
-	if (!atomic_get(&started) || format == NULL) {
+	if (!atomic_get(&active) || format == NULL) {
 		return -RZI_ERR_INVALID;
 	}
 	va_start(args, format);
@@ -182,7 +182,7 @@ int rzi_at_receive(const uint8_t *data, size_t size)
 {
 	uint32_t written;
 
-	if (!atomic_get(&started)) {
+	if (!atomic_get(&active)) {
 		return -RZI_ERR_NOT_READY;
 	}
 	if (data == NULL && size != 0U) {
@@ -225,7 +225,7 @@ static void thread_entry(void *unused1, void *unused2, void *unused3)
 	}
 }
 
-int rzi_at_start(const struct rzi_at_io *io)
+int rzi_at_init(const struct rzi_at_io *io)
 {
 	int rc;
 
@@ -235,17 +235,17 @@ int rzi_at_start(const struct rzi_at_io *io)
 	if (io == NULL || io->write == NULL) {
 		return -RZI_ERR_INVALID;
 	}
-	if (!atomic_cas(&started, 0, 1)) {
+	if (!atomic_cas(&active, 0, 1)) {
 		return -RZI_ERR_ALREADY;
 	}
 	active_io = *io;
 	rc = rzi_at_builtin_register();
 	if (rc == 0) {
 		rzi_at_registry_seal();
-		rc = rzi_at_registry_start_extensions();
+		rc = rzi_at_registry_init_extensions();
 	}
 	if (rc != 0) {
-		atomic_clear(&started);
+		atomic_clear(&active);
 		return rc;
 	}
 	k_thread_create(&at_thread, at_stack, K_THREAD_STACK_SIZEOF(at_stack), thread_entry, NULL,

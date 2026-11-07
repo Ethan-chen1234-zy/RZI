@@ -145,9 +145,9 @@ Example:
 
 ```c
 /**
- * @deprecated Since 0.3; use rzi_service_start(). Removed in 1.0.
+ * @deprecated Since 0.3; use rzi_service_init(). Removed in 1.0.
  */
-__deprecated int rzi_service_init(void);
+__deprecated int rzi_service_begin(void);
 ```
 
 ## 6. Compiler checks
@@ -161,7 +161,7 @@ Functions that return an error code, a handle, or a result the caller must
 consume must be marked `__must_check`:
 
 ```c
-__must_check int rzi_service_start(void);
+__must_check int rzi_service_init(void);
 ```
 
 GCC `warn_unused_result` may still warn after a `(void)` cast. Callers

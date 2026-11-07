@@ -47,7 +47,7 @@ static void uart_isr(const struct device *uart, void *user_data)
 	}
 }
 
-int rzi_at_uart_start(const struct device *uart)
+int rzi_at_uart_init(const struct device *uart)
 {
 	struct rzi_at_io io = {
 		.write = uart_write,
@@ -66,7 +66,7 @@ int rzi_at_uart_start(const struct device *uart)
 		return rzi_err_from_errno(rc);
 	}
 	active_uart = uart;
-	rc = rzi_at_start(&io);
+	rc = rzi_at_init(&io);
 	if (rc != 0) {
 		active_uart = NULL;
 		(void)uart_irq_callback_user_data_set(uart, NULL, NULL);

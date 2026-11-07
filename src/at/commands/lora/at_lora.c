@@ -146,7 +146,7 @@ static const struct rzi_lora_callbacks callbacks = {
  */
 static bool p2p_start_pending;
 
-static int extension_start(void)
+static int extension_init(void)
 {
 	int rc = rzi_lora_register_callbacks(&callbacks);
 
@@ -170,7 +170,7 @@ static void extension_process(void)
 }
 
 static const struct rzi_at_extension extension = {
-	.start = extension_start,
+	.init = extension_init,
 	.process = extension_process,
 };
 

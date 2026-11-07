@@ -21,7 +21,7 @@ extern "C" {
  * @defgroup rzi_at RZI AT service
  * @brief Transport-independent AT command processing.
  * @since 0.2
- * @version 0.4.0
+ * @version 0.5.0
  * @{
  */
 
@@ -118,18 +118,18 @@ struct rzi_at_io {
  * @param count Number of entries in commands.
  *
  * @retval 0 Commands registered.
- * @retval -RZI_ERR_INVALID_STATE The registry is sealed because the service has started.
+ * @retval -RZI_ERR_INVALID_STATE The registry is sealed because the service is initialized.
  * @retval -RZI_ERR_ALREADY A command name is already registered.
  * @retval -RZI_ERR_INVALID The array, count, name, handler, or capacity is invalid.
  *
- * @pre Call before rzi_at_start().
+ * @pre Call before rzi_at_init().
  * @note Thread context only.
  * @since 0.2
  */
 __must_check int rzi_at_register(const struct rzi_at_command *commands, size_t count);
 
 /**
- * @brief Start the process-wide AT service with an I/O binding.
+ * @brief Initialize the process-wide AT service with an I/O binding.
  *
  * The I/O table is copied before this function returns. The object referenced
  * by io->user_data must remain valid for the service
@@ -137,17 +137,17 @@ __must_check int rzi_at_register(const struct rzi_at_command *commands, size_t c
  *
  * @param io Synchronous output binding.
  *
- * @retval 0 Started.
+ * @retval 0 Initialized.
  * @retval -RZI_ERR_INVALID io or write is NULL.
- * @retval -RZI_ERR_ALREADY The service has already started.
+ * @retval -RZI_ERR_ALREADY The service has already been initialized.
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only. Runtime stop and restart are not supported.
  *       Command-package or extension startup may also return a negative
  *       RZI_ERR_* from that package.
- * @since 0.2
+ * @since 0.5
  */
-__must_check int rzi_at_start(const struct rzi_at_io *io);
+__must_check int rzi_at_init(const struct rzi_at_io *io);
 
 /**
  * @brief Supply received bytes to the AT parser.
@@ -159,7 +159,7 @@ __must_check int rzi_at_start(const struct rzi_at_io *io);
  * @param size Number of bytes to copy.
  *
  * @retval 0 All bytes accepted.
- * @retval -RZI_ERR_NOT_READY The AT service has not started.
+ * @retval -RZI_ERR_NOT_READY The AT service is not active.
  * @retval -RZI_ERR_INVALID data is NULL while size is nonzero.
  * @retval -RZI_ERR_OVERFLOW The ring buffer overflowed.
  *

@@ -38,7 +38,7 @@ int main(void)
 	}
 
 	/* The AT service owns the UART from here on. */
-	int rc = rzi_at_uart_start(at_uart);
+	int rc = rzi_at_uart_init(at_uart);
 
 	if (rc != 0) {
 		return rc;

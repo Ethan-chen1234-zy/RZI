@@ -165,7 +165,7 @@ static void *setup(void)
 		.write = io_write,
 	};
 
-	zassert_ok(rzi_at_start(&io));
+	zassert_ok(rzi_at_init(&io));
 	return NULL;
 }
 

@@ -20,7 +20,7 @@
  */
 struct rzi_at_extension {
 	/** Initialize the extension before the AT execution thread starts. */
-	int (*start)(void);
+	int (*init)(void);
 	/** Perform optional periodic processing in the AT execution thread. */
 	void (*process)(void);
 	/** Delete persistent extension state before a factory-reset reboot. */
@@ -35,7 +35,7 @@ struct rzi_at_extension {
  */
 void rzi_at_registry_seal(void);
 int rzi_at_registry_add_extension(const struct rzi_at_extension *extension);
-int rzi_at_registry_start_extensions(void);
+int rzi_at_registry_init_extensions(void);
 void rzi_at_registry_process_extensions(void);
 int rzi_at_registry_factory_reset(void);
 int rzi_at_dispatch(const char *name, enum rzi_at_operation operation, const char *argument);

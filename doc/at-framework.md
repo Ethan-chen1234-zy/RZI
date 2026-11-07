@@ -93,7 +93,7 @@ context. An RX overflow resets the partial command before reporting an overflow
 response, so truncated input cannot be executed.
 
 The selected I/O binding remains owned by the application. The UART
-adapter takes exclusive use of the selected device after successful start; the
+adapter takes exclusive use of the selected device after successful init; the
 same UART must not also be used by the Zephyr console, shell, or logging backend.
 
 The initial implementation is process-wide and supports one active I/O adapter.

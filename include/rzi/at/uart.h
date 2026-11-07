@@ -22,26 +22,26 @@ extern "C" {
  * @ingroup rzi_at
  * @brief UART binding for the RZI AT service.
  * @since 0.2
- * @version 0.4.0
+ * @version 0.5.0
  * @{
  */
 
 /**
- * @brief Start the AT service on an interrupt-driven UART.
+ * @brief Initialize the AT service on an interrupt-driven UART.
  *
  * RZI takes exclusive ownership of the UART receive callback after this
  * function succeeds.
  *
  * @param uart Ready UART device with interrupt-driven API support.
  *
- * @return Zero when started, otherwise a negative RZI_ERR_* from device
+ * @return Zero when initialized, otherwise a negative RZI_ERR_* from device
  *         validation, the UART driver, or the AT service.
  *
  * @pre UART interrupt support is enabled.
  * @note Thread context only.
- * @since 0.2
+ * @since 0.5
  */
-__must_check int rzi_at_uart_start(const struct device *uart);
+__must_check int rzi_at_uart_init(const struct device *uart);
 
 /**
  * @brief Read the current AT UART baud rate.
@@ -49,7 +49,7 @@ __must_check int rzi_at_uart_start(const struct device *uart);
  * @param[out] baud_rate Destination.
  *
  * @retval 0 Baud rate stored.
- * @retval -RZI_ERR_NOT_READY The UART adapter is not started.
+ * @retval -RZI_ERR_NOT_READY The UART adapter is not initialized.
  * @retval -RZI_ERR_INVALID baud_rate is NULL.
  * @since 0.3
  */
@@ -61,7 +61,7 @@ __must_check int rzi_at_uart_get_baud(uint32_t *baud_rate);
  * @param baud_rate Requested baud rate.
  *
  * @retval 0 Baud rate applied.
- * @retval -RZI_ERR_NOT_READY The UART adapter is not started.
+ * @retval -RZI_ERR_NOT_READY The UART adapter is not initialized.
  * @retval -RZI_ERR_INVALID baud_rate is zero.
  * @since 0.3
  */

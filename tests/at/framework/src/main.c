@@ -109,7 +109,7 @@ static void *setup(void)
 	};
 
 	zassert_ok(rzi_at_register(&custom_command, 1));
-	zassert_ok(rzi_at_start(&io));
+	zassert_ok(rzi_at_init(&io));
 #if defined(CONFIG_RZI_POWER)
 	/* Read native PM support before any test takes a runtime-switch lock. */
 	send_command_until("AT+LPM=?\r",
@@ -149,7 +149,7 @@ ZTEST(rzi_at_framework, test_operation_validation)
 	zassert_not_null(strstr(output, "\r\nAT_ERROR\r\n"));
 }
 
-ZTEST(rzi_at_framework, test_registry_is_immutable_after_start)
+ZTEST(rzi_at_framework, test_registry_is_immutable_after_init)
 {
 	zassert_equal(rzi_at_register(&custom_command, 1), -RZI_ERR_INVALID_STATE);
 }

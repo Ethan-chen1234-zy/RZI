@@ -74,11 +74,11 @@ int rzi_at_registry_add_extension(const struct rzi_at_extension *extension)
 	return 0;
 }
 
-int rzi_at_registry_start_extensions(void)
+int rzi_at_registry_init_extensions(void)
 {
 	for (size_t i = 0; i < extension_count; ++i) {
-		if (extensions[i]->start != NULL) {
-			int rc = extensions[i]->start();
+		if (extensions[i]->init != NULL) {
+			int rc = extensions[i]->init();
 
 			if (rc != 0) {
 				return rc;

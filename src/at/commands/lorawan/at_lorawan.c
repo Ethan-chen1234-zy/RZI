@@ -318,7 +318,7 @@ static const struct rzi_lorawan_callbacks callbacks = {
 	.on_event = on_event,
 };
 
-static int extension_start(void)
+static int extension_init(void)
 {
 	struct rzi_at_lorawan_context *context = &rzi_at_lorawan_context;
 	int rc = 0;
@@ -398,7 +398,7 @@ static int extension_factory_reset(void)
 }
 
 static const struct rzi_at_extension extension = {
-	.start = extension_start,
+	.init = extension_init,
 	.factory_reset = extension_factory_reset,
 };
 
