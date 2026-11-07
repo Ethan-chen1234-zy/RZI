@@ -406,7 +406,7 @@ src/at/
 ├── at_registry.c            command registration
 ├── at_priv.h                cross-file private contract
 ├── commands/
-│   ├── at_command_system.c  system command package
+│   ├── at_system.c          system command package
 │   ├── at_network_mode.c    shared AT+NWM state
 │   └── lorawan/
 │       ├── at_lorawan.c

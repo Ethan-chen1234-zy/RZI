@@ -5,7 +5,7 @@ zephyr_library_sources(
   at.c
   at_parser.c
   at_registry.c
-  commands/at_command_system.c
+  commands/at_system.c
 )
 
 if(CONFIG_RZI_AT_COMMAND_LORAWAN OR CONFIG_RZI_AT_COMMAND_LORA)
