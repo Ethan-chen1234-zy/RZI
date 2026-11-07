@@ -49,7 +49,7 @@ struct rzi_lorawan_multicast_session {
  *
  * @retval 0 Session started.
  * @retval -RZI_ERR_INVALID session is NULL or contains an invalid class, group, or data rate.
- * @retval -RZI_ERR_NOT_READY The service has not started.
+ * @retval -RZI_ERR_NOT_READY The service is not active.
  * @retval -RZI_ERR_NO_RESOURCE No group slot remains.
  * @retval -RZI_ERR_NOT_SUPPORTED The backend does not support multicast.
  * @retval -RZI_ERR_ISR Called from an ISR.
@@ -67,7 +67,7 @@ rzi_lorawan_add_multicast_session(const struct rzi_lorawan_multicast_session *se
  *
  * @retval 0 Session removed.
  * @retval -RZI_ERR_NOT_FOUND No session uses this address.
- * @retval -RZI_ERR_NOT_READY The service has not started.
+ * @retval -RZI_ERR_NOT_READY The service is not active.
  * @retval -RZI_ERR_NOT_SUPPORTED The backend does not support multicast.
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
@@ -83,7 +83,7 @@ __must_check int rzi_lorawan_remove_multicast_session(uint32_t dev_addr);
  *
  * @retval 0 Count stored.
  * @retval -RZI_ERR_INVALID count is NULL.
- * @retval -RZI_ERR_NOT_READY The service has not started.
+ * @retval -RZI_ERR_NOT_READY The service is not active.
  * @retval -RZI_ERR_NOT_SUPPORTED The backend does not support multicast.
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
@@ -102,7 +102,7 @@ __must_check int rzi_lorawan_get_multicast_count(size_t *count);
  *
  * @retval 0 Session stored.
  * @retval -RZI_ERR_INVALID session is NULL or index is out of range.
- * @retval -RZI_ERR_NOT_READY The service has not started.
+ * @retval -RZI_ERR_NOT_READY The service is not active.
  * @retval -RZI_ERR_NOT_SUPPORTED The backend does not support multicast.
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
@@ -116,7 +116,7 @@ __must_check int rzi_lorawan_get_multicast_session(size_t index,
  * @brief Stop and remove every multicast session.
  *
  * @retval 0 Sessions cleared.
- * @retval -RZI_ERR_NOT_READY The service has not started.
+ * @retval -RZI_ERR_NOT_READY The service is not active.
  * @retval -RZI_ERR_NOT_SUPPORTED The backend does not support multicast.
  * @retval -RZI_ERR_ISR Called from an ISR.
  *

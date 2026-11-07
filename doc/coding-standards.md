@@ -123,6 +123,26 @@ Zephyr reboot, hardware-identity, UART-configuration, or Bluetooth-identity
 APIs when no RZI business service owns that capability. Such calls MUST remain
 inside the corresponding adapter or system-command implementation.
 
+### 2.2 Service lifecycle ownership
+
+Each service with a public lifecycle MUST have exactly one authoritative state
+owned by its service core. Public state queries and lifecycle events MUST read
+or originate from that same state. A backend MAY keep private flags required by
+its implementation, but those flags MUST NOT become a second public source of
+truth.
+
+Backend callbacks request facts or transitions; the service core validates and
+applies them. Every actual public lifecycle transition MUST emit its documented
+state-change event, and the state MUST be updated before that event is
+delivered. Transient operation details such as receive activity, retry counts,
+and queued work SHOULD remain separate from the lifecycle enum unless they
+change which public operations are valid.
+
+Lifecycle teardown MUST serialize with callbacks and in-flight backend work.
+If `stop` or `deinit` fails, ownership and the last usable lifecycle state MUST
+remain retryable. An API that waits for its own dispatcher MUST reject calls
+from that dispatcher's callbacks rather than deadlock.
+
 ## 3. Naming
 
 ### 3.1 General rules
@@ -490,6 +510,8 @@ CI still applies. See [CONTRIBUTING.md](../CONTRIBUTING.md) for commands and
       radio drivers directly.
 - [ ] AT transport and system-platform exceptions remain in their owning
       adapter or system-command implementation.
+- [ ] Each service lifecycle has one authoritative service-core state; backend
+      flags do not become a second public state source.
 - [ ] AT command names have no `AT+` and are uppercase ASCII.
 - [ ] Return values and asynchronous completion are not mixed. Errors are
       negative `RZI_ERR_*` values.

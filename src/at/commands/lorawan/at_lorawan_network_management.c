@@ -117,7 +117,7 @@ static int handle_band(const struct rzi_at_request *request, void *user_data)
 			       : rzi_at_respond_value(RZI_AT_VALUE(RZI_ATCMD_BAND, "%d"),
 						      rzi_at_lorawan_region_to_band(region));
 	}
-	if (context->service_started) {
+	if (context->service_active) {
 		return -RZI_ERR_BUSY;
 	}
 
@@ -150,7 +150,7 @@ static int handle_class(const struct rzi_at_request *request, void *user_data)
 
 	ARG_UNUSED(user_data);
 	if (request->operation == RZI_AT_OP_READ) {
-		if (context->service_started) {
+		if (context->service_active) {
 			rc = rzi_lorawan_get_class(&device_class);
 			if (rc != 0) {
 				return rc;
@@ -173,7 +173,7 @@ static int handle_class(const struct rzi_at_request *request, void *user_data)
 	if (rc != 0) {
 		return rc;
 	}
-	if (context->service_started) {
+	if (context->service_active) {
 		rc = rzi_lorawan_set_class(device_class);
 		if (rc != 0) {
 			return rc;

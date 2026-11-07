@@ -6,6 +6,7 @@
  */
 
 #include <errno.h>
+#include <string.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/util.h>
@@ -38,6 +39,7 @@ BUILD_ASSERT(SMTC_MODEM_CHANNEL_MASK_MAX_LENGTH == 2 * RZI_LORAWAN_CHANNEL_MASK_
 
 /* Protected by the USP lock, also held by the USP engine callback. */
 static bool ready;
+static bool platform_acquired;
 static bool tx_pending;
 static bool credentials_valid;
 static struct rzi_lorawan_join_config join_settings;
@@ -75,7 +77,9 @@ static int map_region(enum rzi_lorawan_region value, smtc_modem_region_t *out)
 
 void rzi_lorawan_usp_publish(const struct rzi_lorawan_backend_event *event)
 {
-	event_sink(event);
+	if (event_sink != NULL) {
+		event_sink(event);
+	}
 }
 
 static void publish_error(int error)
@@ -692,8 +696,8 @@ static const struct rzi_lorawan_fuota_ops usp_fuota_ops = {
 
 #endif
 
-static int usp_start(enum rzi_lorawan_region selected_region, bool bypass,
-		     rzi_lorawan_event_sink_t sink)
+static int usp_init(enum rzi_lorawan_region selected_region, bool bypass,
+		    rzi_lorawan_event_sink_t sink)
 {
 	smtc_modem_region_t selected;
 	int rc;
@@ -701,25 +705,65 @@ static int usp_start(enum rzi_lorawan_region selected_region, bool bypass,
 	if (map_region(selected_region, &selected) != 0 || sink == NULL) {
 		return -RZI_ERR_INVALID;
 	}
+	if (!platform_acquired) {
+		rc = rzi_usp_acquire();
+		if (rc != 0) {
+			return rc;
+		}
+		platform_acquired = true;
+	}
 	region = selected;
 	join_backoff_bypass = bypass;
 	event_sink = sink;
 #ifdef CONFIG_RZI_LORAWAN_FUOTA
 	lorawan_register_fuota_callbacks(&usp_fuota_cb);
 #endif
-	rc = rzi_usp_init();
-	if (rc != 0) {
-		return rc;
-	}
 	rzi_usp_lock();
 	rzi_usp_set_event_handler(handle_event);
 	rzi_usp_unlock();
 	return 0;
 }
 
+static int usp_stop(void)
+{
+	int rc = 0;
+
+	rzi_usp_lock();
+	if (tx_pending) {
+		rc = -RZI_ERR_BUSY;
+	} else if (platform_acquired) {
+		rc = rzi_usp_result(smtc_modem_leave_network(STACK_ID));
+		if (rc == 0) {
+			rzi_usp_set_event_handler(NULL);
+			event_sink = NULL;
+			ready = false;
+			class_b_state = RZI_LORAWAN_CLASS_B_IDLE;
+		}
+	}
+	rzi_usp_unlock();
+	return rc;
+}
+
+static int usp_deinit(void)
+{
+	int rc = 0;
+
+	if (platform_acquired) {
+		rc = rzi_usp_release();
+		if (rc == 0) {
+			platform_acquired = false;
+			credentials_valid = false;
+			memset(&join_settings, 0, sizeof(join_settings));
+		}
+	}
+	return rc;
+}
+
 const struct rzi_lorawan_backend_api rzi_lorawan_backend = {
 	.capabilities = USP_CAPABILITIES,
-	.base.start = usp_start,
+	.base.init = usp_init,
+	.base.stop = usp_stop,
+	.base.deinit = usp_deinit,
 	.base.join = usp_join,
 	.base.leave = usp_leave,
 	.base.send = usp_send,

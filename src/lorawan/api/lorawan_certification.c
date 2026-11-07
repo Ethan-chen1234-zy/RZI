@@ -21,7 +21,7 @@ static const struct rzi_lorawan_certification_ops *cert_ops(void)
 int rzi_lorawan_get_certification_mode(bool *enabled)
 {
 	const struct rzi_lorawan_certification_ops *ops;
-	int rc = rzi_lorawan_check_started();
+	int rc = rzi_lorawan_check_ready();
 
 	if (rc != 0) {
 		return rc;
@@ -39,7 +39,7 @@ int rzi_lorawan_get_certification_mode(bool *enabled)
 int rzi_lorawan_set_certification_mode(bool enabled)
 {
 	const struct rzi_lorawan_certification_ops *ops;
-	int rc = rzi_lorawan_check_started();
+	int rc = rzi_lorawan_check_ready();
 
 	if (rc != 0) {
 		return rc;
@@ -54,7 +54,7 @@ int rzi_lorawan_set_certification_mode(bool enabled)
 int rzi_lorawan_get_certification_port_enabled(bool *enabled)
 {
 	const struct rzi_lorawan_certification_ops *ops;
-	int rc = rzi_lorawan_check_started();
+	int rc = rzi_lorawan_check_ready();
 
 	if (rc != 0) {
 		return rc;
@@ -72,7 +72,7 @@ int rzi_lorawan_get_certification_port_enabled(bool *enabled)
 int rzi_lorawan_set_certification_port_enabled(bool enabled)
 {
 	const struct rzi_lorawan_certification_ops *ops;
-	int rc = rzi_lorawan_check_started();
+	int rc = rzi_lorawan_check_ready();
 
 	if (rc != 0) {
 		return rc;

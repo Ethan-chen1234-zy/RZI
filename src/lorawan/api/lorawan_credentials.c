@@ -169,7 +169,7 @@ static int set_bytes(uint8_t *dst, bool *valid, const char *key, const uint8_t *
 static int session_joined(bool *joined)
 {
 	*joined = false;
-	if (rzi_lorawan_check_started() != 0) {
+	if (rzi_lorawan_check_ready() != 0) {
 		return 0;
 	}
 	return rzi_lorawan_backend.base.is_joined(joined);

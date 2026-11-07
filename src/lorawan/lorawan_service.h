@@ -16,8 +16,14 @@
  * event. It does not name individual services such as FUOTA.
  */
 struct rzi_lorawan_service {
-	/** Called after the backend has started successfully. */
-	void (*on_started)(void);
+	/** Called after the backend has initialized successfully. */
+	void (*on_initialized)(void);
+	/** Reject stop while a service owns an operation that cannot be cancelled. */
+	int (*on_stopping)(void);
+	/** Release transient work and locks after the backend stops. */
+	void (*on_stopped)(void);
+	/** Release application callback references after stop. */
+	void (*on_deinit)(void);
 	/** Called for every backend event on the dispatcher thread. */
 	void (*on_event)(const struct rzi_lorawan_backend_event *event);
 };

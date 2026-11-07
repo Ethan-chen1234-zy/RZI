@@ -224,7 +224,7 @@ int main(void)
 	LOG_INF("RZI LoRaWAN periodical uplink (%d s) sample", UPLINK_INTERVAL_MS / 1000);
 	rc = rzi_init();
 	if (rc != 0) {
-		LOG_ERR("Init failed: %s", rzi_err_str(rc));
+		LOG_ERR("Shared infrastructure initialization failed: %s", rzi_err_str(rc));
 		return rc;
 	}
 	rc = rzi_lorawan_register_callbacks(&callbacks);

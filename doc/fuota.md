@@ -23,7 +23,7 @@ automatically when `CONFIG_RZI_LORAWAN_FUOTA=y`:
 
 ```text
 OTAA join
-  -> rzi_fuota_start() (called automatically from rzi_lorawan_init)
+  -> rzi_fuota_init() (called automatically from rzi_lorawan_init)
   -> start ALCSync and request MAC DeviceTime
   -> periodic uplink (ChirpStack advances unicast steps from this)
   -> FPort 202 / 200 / 201 handled transparently by the backend
@@ -116,7 +116,7 @@ See [RAK3372-F partition migration](./boot.md#rak3372-f-partition-migration).
 See `include/rzi/lorawan/fuota.h`:
 
 - `rzi_fuota_register_callbacks()`
-- `rzi_fuota_start()`
+- `rzi_fuota_init()`
 - `rzi_fuota_get_status()`
 - `rzi_fuota_set_expected_size()` (optional override; the backend reports
   reassembly length, and MCUboot images are measured automatically)

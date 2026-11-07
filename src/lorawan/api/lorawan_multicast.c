@@ -20,7 +20,7 @@ static const struct rzi_lorawan_multicast_ops *multicast_ops(void)
 int rzi_lorawan_add_multicast_session(const struct rzi_lorawan_multicast_session *session)
 {
 	const struct rzi_lorawan_multicast_ops *ops;
-	int rc = rzi_lorawan_check_started();
+	int rc = rzi_lorawan_check_ready();
 
 	if (rc != 0) {
 		return rc;
@@ -42,7 +42,7 @@ int rzi_lorawan_add_multicast_session(const struct rzi_lorawan_multicast_session
 int rzi_lorawan_remove_multicast_session(uint32_t dev_addr)
 {
 	const struct rzi_lorawan_multicast_ops *ops;
-	int rc = rzi_lorawan_check_started();
+	int rc = rzi_lorawan_check_ready();
 
 	if (rc != 0) {
 		return rc;
@@ -57,7 +57,7 @@ int rzi_lorawan_remove_multicast_session(uint32_t dev_addr)
 int rzi_lorawan_get_multicast_count(size_t *count)
 {
 	const struct rzi_lorawan_multicast_ops *ops;
-	int rc = rzi_lorawan_check_started();
+	int rc = rzi_lorawan_check_ready();
 
 	if (rc != 0) {
 		return rc;
@@ -75,7 +75,7 @@ int rzi_lorawan_get_multicast_count(size_t *count)
 int rzi_lorawan_get_multicast_session(size_t index, struct rzi_lorawan_multicast_session *session)
 {
 	const struct rzi_lorawan_multicast_ops *ops;
-	int rc = rzi_lorawan_check_started();
+	int rc = rzi_lorawan_check_ready();
 
 	if (rc != 0) {
 		return rc;
@@ -93,7 +93,7 @@ int rzi_lorawan_get_multicast_session(size_t index, struct rzi_lorawan_multicast
 int rzi_lorawan_clear_multicast_sessions(void)
 {
 	const struct rzi_lorawan_multicast_ops *ops;
-	int rc = rzi_lorawan_check_started();
+	int rc = rzi_lorawan_check_ready();
 
 	if (rc != 0) {
 		return rc;

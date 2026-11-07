@@ -14,6 +14,7 @@
 #include "backend/lorawan_backend.h"
 
 K_SEM_DEFINE(fuota_sem, 0, 8);
+K_SEM_DEFINE(ready_sem, 0, 1);
 
 struct fuota_stats {
 	atomic_t state;
@@ -21,11 +22,12 @@ struct fuota_stats {
 };
 
 static rzi_lorawan_event_sink_t fake_sink;
+static bool session_joined;
 static atomic_t clock_sync_calls;
 static uint8_t fake_image[] = {0x11, 0x22, 0x33, 0x44};
 
-static int fake_start(enum rzi_lorawan_region region, bool join_backoff_bypass,
-		      rzi_lorawan_event_sink_t event_sink)
+static int fake_init(enum rzi_lorawan_region region, bool join_backoff_bypass,
+		     rzi_lorawan_event_sink_t event_sink)
 {
 	const struct rzi_lorawan_backend_event event = {
 		.type = RZI_LORAWAN_BACKEND_READY,
@@ -33,6 +35,7 @@ static int fake_start(enum rzi_lorawan_region region, bool join_backoff_bypass,
 
 	ARG_UNUSED(region);
 	ARG_UNUSED(join_backoff_bypass);
+	session_joined = false;
 	fake_sink = event_sink;
 	fake_sink(&event);
 	return 0;
@@ -45,12 +48,26 @@ static int fake_join(const struct rzi_lorawan_join_config *config)
 	};
 
 	ARG_UNUSED(config);
+	session_joined = true;
 	fake_sink(&event);
 	return 0;
 }
 
 static int fake_leave(void)
 {
+	session_joined = false;
+	return 0;
+}
+
+static int fake_stop(void)
+{
+	session_joined = false;
+	return 0;
+}
+
+static int fake_deinit(void)
+{
+	fake_sink = NULL;
 	return 0;
 }
 
@@ -71,7 +88,7 @@ static int fake_set_class(enum rzi_lorawan_class device_class)
 
 static int fake_is_joined(bool *joined)
 {
-	*joined = true;
+	*joined = session_joined;
 	return 0;
 }
 
@@ -117,7 +134,9 @@ static int fake_is_busy(bool *busy)
 const struct rzi_lorawan_backend_api rzi_lorawan_backend = {
 	.capabilities = RZI_LORAWAN_CAP_OTAA | RZI_LORAWAN_CAP_CLASS_A | RZI_LORAWAN_CAP_CLASS_C |
 			RZI_LORAWAN_CAP_FUOTA,
-	.base.start = fake_start,
+	.base.init = fake_init,
+	.base.stop = fake_stop,
+	.base.deinit = fake_deinit,
 	.base.join = fake_join,
 	.base.leave = fake_leave,
 	.base.send = fake_send,
@@ -143,6 +162,14 @@ static void on_complete(int status, void *user_data)
 	k_sem_give(&fuota_sem);
 }
 
+static void on_lorawan_event(const struct rzi_lorawan_event *event, void *user_data)
+{
+	ARG_UNUSED(user_data);
+	if (event->type == RZI_LORAWAN_EVENT_READY) {
+		k_sem_give(&ready_sem);
+	}
+}
+
 static void wait_for(unsigned int count)
 {
 	for (unsigned int i = 0; i < count; ++i) {
@@ -159,6 +186,9 @@ ZTEST(rzi_lorawan_fuota, test_session_and_image_access)
 		.user_data = &stats,
 	};
 	struct rzi_fuota_status status = {0};
+	const struct rzi_lorawan_callbacks lorawan_callbacks = {
+		.on_event = on_lorawan_event,
+	};
 	uint8_t image[sizeof(fake_image)] = {0};
 	const struct rzi_lorawan_backend_event started = {
 		.type = RZI_LORAWAN_BACKEND_FUOTA,
@@ -172,7 +202,9 @@ ZTEST(rzi_lorawan_fuota, test_session_and_image_access)
 	};
 
 	zassert_ok(rzi_fuota_register_callbacks(&fuota_callbacks));
+	zassert_ok(rzi_lorawan_register_callbacks(&lorawan_callbacks));
 	zassert_ok(rzi_lorawan_init(RZI_LORAWAN_REGION_EU_868));
+	zassert_ok(k_sem_take(&ready_sem, K_SECONDS(1)));
 	zassert_true((rzi_lorawan_get_capabilities() & RZI_LORAWAN_CAP_FUOTA) != 0U);
 	zassert_ok(rzi_lorawan_join(1, 0, RZI_LORAWAN_JOIN_INTERVAL_DEFAULT, 0));
 	wait_for(1);
@@ -196,6 +228,14 @@ ZTEST(rzi_lorawan_fuota, test_session_and_image_access)
 	zassert_mem_equal(image, fake_image, sizeof(fake_image));
 	zassert_ok(rzi_lorawan_set_class(RZI_LORAWAN_CLASS_C));
 	zassert_equal(rzi_fuota_apply(), -RZI_ERR_NOT_SUPPORTED);
+	zassert_ok(rzi_lorawan_stop());
+	zassert_ok(rzi_fuota_get_status(&status));
+	zassert_equal(status.state, RZI_FUOTA_STATE_IDLE);
+	zassert_false(status.image_ready);
+
+	zassert_ok(rzi_lorawan_init(RZI_LORAWAN_REGION_EU_868));
+	zassert_ok(k_sem_take(&ready_sem, K_SECONDS(1)));
+	zassert_ok(rzi_lorawan_deinit());
 }
 
 ZTEST_SUITE(rzi_lorawan_fuota, NULL, NULL, NULL, NULL, NULL);

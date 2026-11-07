@@ -31,8 +31,8 @@ struct rzi_at_lorawan_last_downlink {
 
 /** Process-wide state owned by the LoRaWAN AT command package. */
 struct rzi_at_lorawan_context {
-	/** True after the public LoRaWAN service has started. */
-	bool service_started;
+	/** True while the public LoRaWAN service is active. */
+	bool service_active;
 	/** Defers the first join until backend readiness. */
 	atomic_t join_pending;
 	/** Device class selected by AT+CLASS. */
@@ -86,7 +86,7 @@ int rzi_at_lorawan_parse_long(const char *argument, long *value);
 /** Parse a 0/1 boolean command argument. */
 int rzi_at_lorawan_parse_bool(const char *argument, bool *value);
 
-/** Apply AT+CLASS after the LoRaWAN service has started. */
+/** Apply AT+CLASS after the LoRaWAN service becomes active. */
 int rzi_at_lorawan_apply_class(void);
 
 /** Map one RUI3 AT+BAND number to an RZI region. */

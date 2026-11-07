@@ -33,8 +33,14 @@ uint32_t fake_join_backoff_s;
 int fake_join_backoff_error;
 /* Join attempts that fail before one succeeds; negative fails forever. */
 int fake_join_failures;
+int fake_join_error;
 int fake_join_attempts;
 int fake_leave_calls;
+int fake_stop_calls;
+int fake_stop_error;
+int fake_deinit_calls;
+int fake_deinit_error;
+bool fake_start_error_event;
 /* Keep uplinks outstanding until fake_complete_tx(). */
 bool fake_tx_hold;
 struct rzi_lorawan_join_config fake_last_join;
@@ -105,14 +111,15 @@ static void join_attempt(struct k_work *work)
 	publish_type(failed ? RZI_LORAWAN_BACKEND_JOIN_FAILED : RZI_LORAWAN_BACKEND_JOINED);
 }
 
-static int fake_start(enum rzi_lorawan_region region, bool join_backoff_bypass,
-		      rzi_lorawan_event_sink_t event_sink)
+static int fake_init(enum rzi_lorawan_region region, bool join_backoff_bypass,
+		     rzi_lorawan_event_sink_t event_sink)
 {
 	zassert_equal(region, RZI_LORAWAN_REGION_US_915);
 	zassert_true(join_backoff_bypass);
 	fake_sink = event_sink;
 	session_joined = false;
-	publish_type(RZI_LORAWAN_BACKEND_READY);
+	publish_type(fake_start_error_event ? RZI_LORAWAN_BACKEND_ERROR
+					    : RZI_LORAWAN_BACKEND_READY);
 	return 0;
 }
 
@@ -120,6 +127,9 @@ static int fake_join(const struct rzi_lorawan_join_config *config)
 {
 	int rc = 0;
 
+	if (fake_join_error != 0) {
+		return fake_join_error;
+	}
 	if (config->activation != RZI_LORAWAN_ACTIVATION_OTAA) {
 		return -RZI_ERR_NOT_SUPPORTED;
 	}
@@ -144,6 +154,31 @@ static int fake_leave(void)
 	session_joined = false;
 	(void)k_work_cancel_delayable(&join_work);
 	k_mutex_unlock(&lock);
+	return 0;
+}
+
+static int fake_stop(void)
+{
+	fake_stop_calls++;
+	if (fake_stop_error != 0) {
+		return fake_stop_error;
+	}
+	k_mutex_lock(&lock, K_FOREVER);
+	joining = false;
+	session_joined = false;
+	tx_pending = false;
+	(void)k_work_cancel_delayable(&join_work);
+	k_mutex_unlock(&lock);
+	return 0;
+}
+
+static int fake_deinit(void)
+{
+	fake_deinit_calls++;
+	if (fake_deinit_error != 0) {
+		return fake_deinit_error;
+	}
+	fake_sink = NULL;
 	return 0;
 }
 
@@ -666,7 +701,9 @@ static const struct rzi_lorawan_certification_ops fake_cert_ops = {
 
 const struct rzi_lorawan_backend_api rzi_lorawan_backend = {
 	.capabilities = FAKE_CAPABILITIES,
-	.base.start = fake_start,
+	.base.init = fake_init,
+	.base.stop = fake_stop,
+	.base.deinit = fake_deinit,
 	.base.join = fake_join,
 	.base.leave = fake_leave,
 	.base.send = fake_send,

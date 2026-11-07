@@ -26,6 +26,7 @@ extern int fake_set_class_error;
 extern uint32_t fake_join_backoff_s;
 extern int fake_join_backoff_error;
 extern int fake_join_failures;
+extern int fake_join_error;
 extern int fake_join_attempts;
 extern int fake_leave_calls;
 extern bool fake_tx_hold;
@@ -143,6 +144,16 @@ static void wait_for_callbacks(unsigned int count)
 	}
 }
 
+static void wait_for_states(const struct callback_stats *stats, atomic_val_t count)
+{
+	int64_t deadline = k_uptime_get() + 1000;
+
+	while (atomic_get(&stats->states) < count && k_uptime_get() < deadline) {
+		k_sleep(K_MSEC(1));
+	}
+	zassert_equal(atomic_get(&stats->states), count);
+}
+
 ZTEST(rzi_lorawan_service, test_sdk_metadata_and_feature_discovery)
 {
 	zassert_equal(strcmp(rzi_version_get_string(), RZI_VERSION_STRING), 0);
@@ -157,8 +168,12 @@ ZTEST(rzi_lorawan_service, test_lifecycle_and_multiple_subscribers)
 	struct rzi_lorawan_callbacks first_callbacks = callbacks;
 	struct rzi_lorawan_callbacks second_callbacks = callbacks;
 	const uint8_t payload[] = {0x12, 0x34};
+	enum rzi_lorawan_state state;
 	bool joined = false;
 
+	zassert_ok(rzi_lorawan_get_state(&state));
+	zassert_equal(state, RZI_LORAWAN_STATE_STOPPED);
+	zassert_equal(rzi_lorawan_get_state(NULL), -RZI_ERR_INVALID);
 	first_callbacks.user_data = &first;
 	second_callbacks.user_data = &second;
 	zassert_ok(rzi_lorawan_register_callbacks(&first_callbacks));
@@ -169,10 +184,12 @@ ZTEST(rzi_lorawan_service, test_lifecycle_and_multiple_subscribers)
 	zassert_ok(rzi_lorawan_set_join_backoff_bypass(true));
 	zassert_ok(rzi_lorawan_init(RZI_LORAWAN_REGION_US_915));
 	wait_for_callbacks(2);
+	wait_for_states(&first, 2);
 	zassert_equal(atomic_get(&first.ready), 1);
 	zassert_equal(atomic_get(&second.ready), 1);
-	zassert_equal(atomic_get(&first.states), 1);
-	zassert_equal(atomic_get(&first.last_state), RZI_LORAWAN_STATE_STARTING);
+	zassert_equal(atomic_get(&first.last_state), RZI_LORAWAN_STATE_READY);
+	zassert_ok(rzi_lorawan_get_state(&state));
+	zassert_equal(state, RZI_LORAWAN_STATE_READY);
 	zassert_equal(rzi_lorawan_init(RZI_LORAWAN_REGION_US_915), -RZI_ERR_ALREADY);
 	zassert_equal(rzi_lorawan_send(10, payload, sizeof(payload), RZI_LORAWAN_MSG_CONFIRMED),
 		      -RZI_ERR_NOT_JOINED);
@@ -200,6 +217,7 @@ ZTEST(rzi_lorawan_service, test_lifecycle_and_multiple_subscribers)
 	}
 	zassert_ok(rzi_lorawan_join(1, 0, RZI_LORAWAN_JOIN_INTERVAL_DEFAULT, 0));
 	wait_for_callbacks(2);
+	wait_for_states(&second, 4);
 	zassert_equal(atomic_get(&first.joined), 1);
 	zassert_equal(atomic_get(&second.joined), 1);
 	{
@@ -213,8 +231,9 @@ ZTEST(rzi_lorawan_service, test_lifecycle_and_multiple_subscribers)
 		zassert_ok(rzi_lorawan_get_app_skey(key, sizeof(key)));
 		zassert_mem_equal(key, fake_otaa_app_skey, sizeof(key));
 	}
-	zassert_equal(atomic_get(&second.states), 2);
-	zassert_equal(atomic_get(&second.last_state), RZI_LORAWAN_STATE_JOINING);
+	zassert_equal(atomic_get(&second.last_state), RZI_LORAWAN_STATE_JOINED);
+	zassert_ok(rzi_lorawan_get_state(&state));
+	zassert_equal(state, RZI_LORAWAN_STATE_JOINED);
 
 	zassert_ok(rzi_lorawan_unregister_callbacks(&first_callbacks));
 	zassert_ok(rzi_lorawan_send(10, payload, sizeof(payload), RZI_LORAWAN_MSG_CONFIRMED));
@@ -432,6 +451,7 @@ static void unsubscribe_after(void *fixture)
 		usp_registered = false;
 	}
 	fake_tx_hold = false;
+	fake_join_error = 0;
 }
 
 static void ensure_ready_and_left(void)
@@ -452,6 +472,46 @@ static void ensure_ready_and_left(void)
 	fake_join_failures = 0;
 	fake_join_attempts = 0;
 	fake_leave_calls = 0;
+}
+
+ZTEST(rzi_lorawan_service, test_rejected_rejoin_preserves_joined_state)
+{
+	struct callback_stats *stats;
+	enum rzi_lorawan_state state;
+	bool joined = false;
+
+	ensure_ready_and_left();
+	stats = subscribe();
+	zassert_ok(rzi_lorawan_join(1, 0, RZI_LORAWAN_JOIN_INTERVAL_DEFAULT, 0));
+	wait_for_count(&stats->joined, 1);
+	wait_for_states(stats, 2);
+	zassert_equal(rzi_lorawan_join(1, RZI_LORAWAN_JOIN_KEEP, RZI_LORAWAN_JOIN_KEEP,
+				       RZI_LORAWAN_JOIN_KEEP),
+		      -RZI_ERR_BUSY);
+	zassert_ok(rzi_lorawan_get_state(&state));
+	zassert_equal(state, RZI_LORAWAN_STATE_JOINED);
+	zassert_ok(rzi_lorawan_is_joined(&joined));
+	zassert_true(joined);
+	zassert_equal(atomic_get(&stats->states), 2);
+}
+
+ZTEST(rzi_lorawan_service, test_rejected_join_can_be_retried)
+{
+	struct callback_stats *stats;
+	enum rzi_lorawan_state state;
+
+	ensure_ready_and_left();
+	stats = subscribe();
+	fake_join_error = -RZI_ERR_IO;
+	zassert_equal(rzi_lorawan_join(1, 0, RZI_LORAWAN_JOIN_INTERVAL_DEFAULT, 0), -RZI_ERR_IO);
+	zassert_ok(rzi_lorawan_get_state(&state));
+	zassert_equal(state, RZI_LORAWAN_STATE_READY);
+	fake_join_error = 0;
+	zassert_ok(rzi_lorawan_join(1, RZI_LORAWAN_JOIN_KEEP, RZI_LORAWAN_JOIN_KEEP,
+				    RZI_LORAWAN_JOIN_KEEP));
+	wait_for_count(&stats->joined, 1);
+	zassert_ok(rzi_lorawan_get_state(&state));
+	zassert_equal(state, RZI_LORAWAN_STATE_JOINED);
 }
 
 ZTEST(rzi_lorawan_service, test_stop_join_aborts_pending_attempt)

@@ -143,19 +143,44 @@ Rules:
    `set_join_backoff_bypass` may be called only before `init`. After
    `init` both return `-RZI_ERR_INVALID_STATE`. `init` overwrites the
    stored region;
-3. `init` is a process-wide one-shot. A repeat returns `-RZI_ERR_ALREADY`;
+3. `init` returns `-RZI_ERR_ALREADY` while the service is active. After a
+   successful `stop` or `deinit`, it may be called again;
 4. `RZI_LORAWAN_EVENT_READY` means the backend can accept a join. It does
    not mean the device has joined the network;
 5. After an unexpected modem reset, RZI reconfigures the backend and emits
    `READY` again;
-6. This version has no stop/reinit. Fatal errors after the backend has
-   started should be logged by the application, then the device rebooted.
+6. `stop` cancels join activity, leaves the network, drains accepted uplink
+   completions and callbacks, and retains configuration and subscribers.
+   `deinit` additionally releases backend resources and public callback
+   references. Neither operation erases persistent settings;
+7. While the state is `STARTING`, APIs that require a ready backend return
+   `-RZI_ERR_NOT_READY`.
 
-`READY`, `JOINED`, and `JOIN_FAILED` are dedicated completion events.
-`STATE_CHANGED` carries service-originated transitions such as `STARTING`,
-`JOINING`, `STOPPED`, and the return to `READY` after leaving. A backend join
-completion produces one public event; it does not also produce a duplicate
-`STATE_CHANGED` event.
+The service maintains one authoritative lifecycle state:
+
+```text
+STOPPED -> STARTING -> READY -> JOINING -> JOINED
+                         ^         |          |
+                         +---------+----------+
+```
+
+`rzi_lorawan_get_state()` reads that state from any context. The state is
+updated before the corresponding `RZI_LORAWAN_EVENT_STATE_CHANGED` callback is
+delivered. Every actual transition produces one `STATE_CHANGED` event,
+including backend-originated transitions to `READY` and `JOINED`.
+
+`READY`, `JOINED`, and `JOIN_FAILED` remain dedicated completion events because
+they carry operation meaning, while `STATE_CHANGED` describes the resulting
+lifecycle state. For example, a successful join delivers `JOINED` and also
+changes the authoritative state to `RZI_LORAWAN_STATE_JOINED`.
+
+`rzi_lorawan_stop()` is idempotent. It may return `-RZI_ERR_BUSY` while an
+uplink or optional service owns a non-cancellable operation, and
+`-RZI_ERR_NOT_SUPPORTED` when the selected backend has no safe stop primitive.
+It cannot be called from a LoRaWAN callback because it waits for the dispatcher
+to drain. `rzi_lorawan_deinit()` first applies the same stop contract, then
+releases backend resources and clears registered application callbacks. A
+failed stop or deinit preserves ownership so the caller can retry.
 
 ### Join-backoff status
 

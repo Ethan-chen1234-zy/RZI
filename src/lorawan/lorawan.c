@@ -25,6 +25,9 @@ K_MSGQ_DEFINE(events, sizeof(struct rzi_lorawan_backend_event), CONFIG_RZI_LORAW
 K_MUTEX_DEFINE(callbacks_lock);
 K_MUTEX_DEFINE(config_lock);
 K_MUTEX_DEFINE(services_lock);
+K_MUTEX_DEFINE(lifecycle_lock);
+K_MUTEX_DEFINE(dispatch_lock);
+K_SEM_DEFINE(dispatch_drained, 0, 1);
 
 static const struct rzi_lorawan_service *services[SERVICE_MAX];
 static size_t service_count;
@@ -38,7 +41,8 @@ static struct callback_slot callback_slots[CONFIG_RZI_LORAWAN_MAX_CALLBACKS];
 static enum rzi_lorawan_region configured_region = RZI_LORAWAN_REGION_EU_868;
 static enum rzi_lorawan_class configured_class = RZI_LORAWAN_CLASS_A;
 static bool configured_join_backoff_bypass;
-static atomic_t started;
+static atomic_t service_state = ATOMIC_INIT(RZI_LORAWAN_STATE_STOPPED);
+static atomic_t backend_active;
 static atomic_t overflow;
 static atomic_t join_sequence_active;
 static atomic_t join_retries_remaining;
@@ -68,10 +72,17 @@ static void update_class_c_power_locked(bool class_c)
 }
 #endif
 
-static void publish(const struct rzi_lorawan_backend_event *event)
+static void queue_event(const struct rzi_lorawan_backend_event *event)
 {
 	if (k_msgq_put(&events, event, K_NO_WAIT) != 0) {
 		atomic_set(&overflow, 1);
+	}
+}
+
+static void publish(const struct rzi_lorawan_backend_event *event)
+{
+	if (atomic_get(&backend_active)) {
+		queue_event(event);
 	}
 }
 
@@ -82,7 +93,22 @@ static void publish_state(enum rzi_lorawan_state state)
 		.state = state,
 	};
 
-	publish(&event);
+	queue_event(&event);
+}
+
+static enum rzi_lorawan_state get_service_state(void)
+{
+	return (enum rzi_lorawan_state)atomic_get(&service_state);
+}
+
+static void transition_state(enum rzi_lorawan_state next)
+{
+	enum rzi_lorawan_state previous =
+		(enum rzi_lorawan_state)atomic_set(&service_state, (atomic_val_t)next);
+
+	if (previous != next) {
+		publish_state(next);
+	}
 }
 
 static bool event_from_backend(const struct rzi_lorawan_backend_event *event,
@@ -181,8 +207,38 @@ static bool swallow_join_event(const struct rzi_lorawan_backend_event *event)
 	}
 	clear_join_sequence();
 	(void)rzi_lorawan_backend.base.leave();
-	publish_state(RZI_LORAWAN_STATE_READY);
 	return false;
+}
+
+static void update_state_from_backend(const struct rzi_lorawan_backend_event *event)
+{
+	switch (event->type) {
+	case RZI_LORAWAN_BACKEND_READY: {
+		bool joined = false;
+
+		if (rzi_lorawan_backend.base.is_joined(&joined) == 0 && joined) {
+			transition_state(RZI_LORAWAN_STATE_JOINED);
+		} else {
+			transition_state(RZI_LORAWAN_STATE_READY);
+		}
+		break;
+	}
+	case RZI_LORAWAN_BACKEND_JOINED:
+		transition_state(RZI_LORAWAN_STATE_JOINED);
+		break;
+	case RZI_LORAWAN_BACKEND_JOIN_FAILED:
+		if (get_service_state() == RZI_LORAWAN_STATE_JOINING) {
+			transition_state(RZI_LORAWAN_STATE_READY);
+		}
+		break;
+	case RZI_LORAWAN_BACKEND_ERROR:
+		if (get_service_state() == RZI_LORAWAN_STATE_STARTING) {
+			transition_state(RZI_LORAWAN_STATE_STOPPED);
+		}
+		break;
+	default:
+		break;
+	}
 }
 
 static void dispatch(const struct rzi_lorawan_backend_event *event)
@@ -193,6 +249,11 @@ static void dispatch(const struct rzi_lorawan_backend_event *event)
 	size_t count = 0;
 	size_t attached_count;
 	bool deliver;
+
+	if (!atomic_get(&backend_active) && event->type != RZI_LORAWAN_BACKEND_STATE_CHANGED &&
+	    event->type != RZI_LORAWAN_BACKEND_TX_DONE) {
+		return;
+	}
 
 	k_mutex_lock(&callbacks_lock, K_FOREVER);
 	for (size_t i = 0; i < ARRAY_SIZE(callback_slots); ++i) {
@@ -206,6 +267,7 @@ static void dispatch(const struct rzi_lorawan_backend_event *event)
 		return;
 	}
 
+	update_state_from_backend(event);
 	deliver = event_from_backend(event, &public_event);
 	for (size_t i = 0; i < count; ++i) {
 		const struct rzi_lorawan_callbacks *callbacks = &subscribers[i].callbacks;
@@ -236,6 +298,11 @@ static void dispatcher(void *unused1, void *unused2, void *unused3)
 
 	for (;;) {
 		k_msgq_get(&events, &event, K_FOREVER);
+		if (event.type == RZI_LORAWAN_BACKEND_BARRIER) {
+			k_sem_give(&dispatch_drained);
+			continue;
+		}
+		k_mutex_lock(&dispatch_lock, K_FOREVER);
 		dispatch(&event);
 		if (atomic_cas(&overflow, 1, 0)) {
 			const struct rzi_lorawan_backend_event error = {
@@ -245,6 +312,7 @@ static void dispatcher(void *unused1, void *unused2, void *unused3)
 
 			dispatch(&error);
 		}
+		k_mutex_unlock(&dispatch_lock);
 	}
 }
 
@@ -256,22 +324,34 @@ int rzi_lorawan_check_thread(void)
 	return k_is_in_isr() ? -RZI_ERR_ISR : 0;
 }
 
-int rzi_lorawan_check_started(void)
+int rzi_lorawan_check_ready(void)
 {
+	enum rzi_lorawan_state state;
 	int rc = rzi_lorawan_check_thread();
 
 	if (rc != 0) {
 		return rc;
 	}
-	if (!atomic_get(&started)) {
+	state = get_service_state();
+	if (!atomic_get(&backend_active) || state == RZI_LORAWAN_STATE_STOPPED ||
+	    state == RZI_LORAWAN_STATE_STARTING) {
 		return -RZI_ERR_NOT_READY;
 	}
 	return 0;
 }
 
+int rzi_lorawan_get_state(enum rzi_lorawan_state *state)
+{
+	if (state == NULL) {
+		return -RZI_ERR_INVALID;
+	}
+	*state = get_service_state();
+	return 0;
+}
+
 static int check_context(void)
 {
-	return rzi_lorawan_check_started();
+	return rzi_lorawan_check_ready();
 }
 
 void rzi_lorawan_note_class(enum rzi_lorawan_class device_class)
@@ -365,7 +445,7 @@ int rzi_lorawan_set_region(enum rzi_lorawan_region region)
 	}
 
 	k_mutex_lock(&config_lock, K_FOREVER);
-	if (atomic_get(&started)) {
+	if (get_service_state() != RZI_LORAWAN_STATE_STOPPED || atomic_get(&backend_active)) {
 		rc = -RZI_ERR_INVALID_STATE;
 	} else {
 		rc = rzi_lorawan_config_set_region(region);
@@ -386,7 +466,7 @@ int rzi_lorawan_set_join_backoff_bypass(bool enabled)
 	}
 
 	k_mutex_lock(&config_lock, K_FOREVER);
-	if (atomic_get(&started)) {
+	if (get_service_state() != RZI_LORAWAN_STATE_STOPPED || atomic_get(&backend_active)) {
 		rc = -RZI_ERR_INVALID_STATE;
 	} else {
 		configured_join_backoff_bypass = enabled;
@@ -419,7 +499,7 @@ static void check_backend_contract(void)
 	__ASSERT(capability_matches(RZI_LORAWAN_CAP_FUOTA, rzi_lorawan_backend.fuota),
 		 "fuota ops do not match RZI_LORAWAN_CAP_FUOTA");
 #endif
-	__ASSERT(rzi_lorawan_backend.base.start != NULL, "backend must provide start");
+	__ASSERT(rzi_lorawan_backend.base.init != NULL, "backend must provide init");
 	__ASSERT(rzi_lorawan_backend.base.join != NULL, "backend must provide join");
 	__ASSERT(rzi_lorawan_backend.base.leave != NULL, "backend must provide leave");
 	__ASSERT(rzi_lorawan_backend.base.send != NULL, "backend must provide send");
@@ -440,27 +520,35 @@ int rzi_lorawan_init(enum rzi_lorawan_region region)
 		return -RZI_ERR_INVALID;
 	}
 
+	if (k_current_get() == rzi_lorawan_dispatcher) {
+		return -RZI_ERR_DENIED;
+	}
 	check_backend_contract();
+	k_mutex_lock(&lifecycle_lock, K_FOREVER);
 	k_mutex_lock(&config_lock, K_FOREVER);
-	if (!atomic_cas(&started, 0, 1)) {
+	if (atomic_get(&backend_active) ||
+	    !atomic_cas(&service_state, RZI_LORAWAN_STATE_STOPPED, RZI_LORAWAN_STATE_STARTING)) {
 		k_mutex_unlock(&config_lock);
+		k_mutex_unlock(&lifecycle_lock);
 		return -RZI_ERR_ALREADY;
 	}
+	publish_state(RZI_LORAWAN_STATE_STARTING);
 	rc = rzi_lorawan_config_set_region(region);
 	if (rc != 0) {
-		atomic_clear(&started);
+		transition_state(RZI_LORAWAN_STATE_STOPPED);
 		k_mutex_unlock(&config_lock);
+		k_mutex_unlock(&lifecycle_lock);
 		return rc;
 	}
 	configured_region = region;
 	bypass = configured_join_backoff_bypass;
 	k_mutex_unlock(&config_lock);
 
-	publish_state(RZI_LORAWAN_STATE_STARTING);
-	rc = rzi_lorawan_backend.base.start(region, bypass, publish);
+	atomic_set(&backend_active, 1);
+	rc = rzi_lorawan_backend.base.init(region, bypass, publish);
 	if (rc != 0) {
-		atomic_clear(&started);
-		publish_state(RZI_LORAWAN_STATE_STOPPED);
+		atomic_clear(&backend_active);
+		transition_state(RZI_LORAWAN_STATE_STOPPED);
 	} else {
 		const struct rzi_lorawan_service *attached[SERVICE_MAX];
 		size_t attached_count;
@@ -470,11 +558,123 @@ int rzi_lorawan_init(enum rzi_lorawan_region region)
 		memcpy(attached, services, attached_count * sizeof(attached[0]));
 		k_mutex_unlock(&services_lock);
 		for (size_t i = 0; i < attached_count; ++i) {
-			if (attached[i]->on_started != NULL) {
-				attached[i]->on_started();
+			if (attached[i]->on_initialized != NULL) {
+				attached[i]->on_initialized();
 			}
 		}
 	}
+	k_mutex_unlock(&lifecycle_lock);
+	return rc;
+}
+
+/* Caller holds lifecycle_lock; lifecycle calls from callbacks are rejected. */
+static int stop_locked(void)
+{
+	const struct rzi_lorawan_service *attached[SERVICE_MAX];
+	const struct rzi_lorawan_backend_event barrier = {.type = RZI_LORAWAN_BACKEND_BARRIER};
+	size_t count;
+	int rc = 0;
+
+	k_mutex_lock(&services_lock, K_FOREVER);
+	count = service_count;
+	memcpy(attached, services, count * sizeof(attached[0]));
+	k_mutex_unlock(&services_lock);
+	/* Freeze dispatcher callbacks and optional-service event handling. */
+	k_mutex_lock(&dispatch_lock, K_FOREVER);
+	if (atomic_get(&backend_active)) {
+		if (rzi_lorawan_backend.base.stop == NULL) {
+			rc = -RZI_ERR_NOT_SUPPORTED;
+			goto out_unlock_dispatch;
+		}
+		for (size_t i = 0; i < count; ++i) {
+			if (attached[i]->on_stopping != NULL) {
+				rc = attached[i]->on_stopping();
+				if (rc != 0) {
+					goto out_unlock_dispatch;
+				}
+			}
+		}
+		rc = rzi_lorawan_backend.base.stop();
+		if (rc != 0) {
+			goto out_unlock_dispatch;
+		}
+		atomic_clear(&backend_active);
+	}
+	clear_join_sequence();
+	k_mutex_lock(&config_lock, K_FOREVER);
+	update_class_c_power_locked(false);
+	configured_class = RZI_LORAWAN_CLASS_A;
+	last_downlink_valid = false;
+	k_mutex_unlock(&config_lock);
+	for (size_t i = 0; i < count; ++i) {
+		if (attached[i]->on_stopped != NULL) {
+			attached[i]->on_stopped();
+		}
+	}
+	transition_state(RZI_LORAWAN_STATE_STOPPED);
+
+out_unlock_dispatch:
+	k_mutex_unlock(&dispatch_lock);
+	if (rc != 0) {
+		return rc;
+	}
+	/* Drain accepted completions on their documented dispatcher thread. */
+	k_sem_reset(&dispatch_drained);
+	k_msgq_put(&events, &barrier, K_FOREVER);
+	k_sem_take(&dispatch_drained, K_FOREVER);
+	return 0;
+}
+
+static int check_lifecycle_context(void)
+{
+	if (k_is_in_isr()) {
+		return -RZI_ERR_ISR;
+	}
+	return k_current_get() == rzi_lorawan_dispatcher ? -RZI_ERR_DENIED : 0;
+}
+
+int rzi_lorawan_stop(void)
+{
+	int rc = check_lifecycle_context();
+
+	if (rc != 0) {
+		return rc;
+	}
+	k_mutex_lock(&lifecycle_lock, K_FOREVER);
+	rc = stop_locked();
+	k_mutex_unlock(&lifecycle_lock);
+	return rc;
+}
+
+int rzi_lorawan_deinit(void)
+{
+	const struct rzi_lorawan_service *attached[SERVICE_MAX];
+	size_t count;
+	int rc = check_lifecycle_context();
+
+	if (rc != 0) {
+		return rc;
+	}
+	k_mutex_lock(&lifecycle_lock, K_FOREVER);
+	rc = stop_locked();
+	if (rc == 0 && rzi_lorawan_backend.base.deinit != NULL) {
+		rc = rzi_lorawan_backend.base.deinit();
+	}
+	if (rc == 0) {
+		k_mutex_lock(&callbacks_lock, K_FOREVER);
+		memset(callback_slots, 0, sizeof(callback_slots));
+		k_mutex_unlock(&callbacks_lock);
+		k_mutex_lock(&services_lock, K_FOREVER);
+		count = service_count;
+		memcpy(attached, services, count * sizeof(attached[0]));
+		k_mutex_unlock(&services_lock);
+		for (size_t i = 0; i < count; ++i) {
+			if (attached[i]->on_deinit != NULL) {
+				attached[i]->on_deinit();
+			}
+		}
+	}
+	k_mutex_unlock(&lifecycle_lock);
 	return rc;
 }
 
@@ -528,13 +728,21 @@ static int begin_join(void)
 	if (!atomic_cas(&join_sequence_active, 0, 1)) {
 		return -RZI_ERR_BUSY;
 	}
+	if (!atomic_cas(&service_state, RZI_LORAWAN_STATE_READY, RZI_LORAWAN_STATE_JOINING)) {
+		clear_join_sequence();
+		rc = check_context();
+		return rc != 0 ? rc : -RZI_ERR_BUSY;
+	}
 	atomic_set(&join_retries_remaining, attempts);
 	rzi_lorawan_credentials_set_join_active(true);
 	publish_state(RZI_LORAWAN_STATE_JOINING);
 	rc = rzi_lorawan_backend.base.join(&config);
 	if (rc != 0) {
 		clear_join_sequence();
-		publish_state(RZI_LORAWAN_STATE_READY);
+		if (atomic_cas(&service_state, RZI_LORAWAN_STATE_JOINING,
+			       RZI_LORAWAN_STATE_READY)) {
+			publish_state(RZI_LORAWAN_STATE_READY);
+		}
 	}
 	return rc;
 }
@@ -558,7 +766,7 @@ static int stop_join(void)
 		}
 	}
 	if (rc == 0 && !joined) {
-		publish_state(RZI_LORAWAN_STATE_READY);
+		transition_state(RZI_LORAWAN_STATE_READY);
 	}
 	return rc;
 }
@@ -603,7 +811,7 @@ int rzi_lorawan_leave(void)
 			k_mutex_lock(&config_lock, K_FOREVER);
 			update_class_c_power_locked(false);
 			k_mutex_unlock(&config_lock);
-			publish_state(RZI_LORAWAN_STATE_READY);
+			transition_state(RZI_LORAWAN_STATE_READY);
 		}
 	}
 	return rc;
@@ -725,7 +933,7 @@ int rzi_lorawan_get_region(enum rzi_lorawan_region *region)
 		return -RZI_ERR_INVALID;
 	}
 	k_mutex_lock(&config_lock, K_FOREVER);
-	if (!atomic_get(&started)) {
+	if (get_service_state() == RZI_LORAWAN_STATE_STOPPED) {
 		rc = rzi_lorawan_config_get_region(&configured_region);
 	}
 	if (rc == 0) {
@@ -737,7 +945,7 @@ int rzi_lorawan_get_region(enum rzi_lorawan_region *region)
 
 int rzi_lorawan_get_class(enum rzi_lorawan_class *device_class)
 {
-	int rc = rzi_lorawan_check_started();
+	int rc = rzi_lorawan_check_ready();
 
 	if (rc != 0) {
 		return rc;
@@ -811,6 +1019,7 @@ int rzi_lorawan_get_protocol_version(const char **version)
 
 int rzi_lorawan_is_busy(bool *busy)
 {
+	enum rzi_lorawan_state state;
 	int rc = rzi_lorawan_check_thread();
 
 	if (rc != 0) {
@@ -819,8 +1028,13 @@ int rzi_lorawan_is_busy(bool *busy)
 	if (busy == NULL) {
 		return -RZI_ERR_INVALID;
 	}
-	if (!atomic_get(&started)) {
+	state = get_service_state();
+	if (state == RZI_LORAWAN_STATE_STOPPED) {
 		*busy = false;
+		return 0;
+	}
+	if (state == RZI_LORAWAN_STATE_STARTING) {
+		*busy = true;
 		return 0;
 	}
 	return rzi_lorawan_backend.base.is_busy(busy);

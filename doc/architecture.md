@@ -305,6 +305,20 @@ The dispatcher thread delivers that event serially to every registered
 subscriber. Product code therefore runs outside the modem callback and
 outside any backend mutex.
 
+The service core owns the authoritative LoRaWAN lifecycle state. Backend
+events request transitions; they do not expose a second public state source.
+The state is updated before `STATE_CHANGED` is dispatched, and
+`rzi_lorawan_get_state()` reads the same atomic value. Backend-specific
+`active` or `joined` fields remain private implementation details.
+
+Service lifecycle uses `init` / `stop` / `deinit`: `stop` drains callbacks and
+retains configuration and subscribers for restart; `deinit` additionally
+releases backend references and application callback tables. The USP platform
+reference-counts LoRaWAN and raw LoRa users, sleeping the radio and parking its
+engine after the final release. A backend that cannot stop safely, including
+the current Zephyr LoRaWAN backend, returns `-RZI_ERR_NOT_SUPPORTED` without
+pretending that teardown succeeded.
+
 AT and FUOTA subscribe through the same dispatcher. Applications may
 register additional subscribers. Queue overflow is reported with
 `error(-RZI_ERR_OVERFLOW)`.

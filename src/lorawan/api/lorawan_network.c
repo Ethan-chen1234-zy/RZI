@@ -18,10 +18,10 @@
 #define NETWORK_OP(member)                                                                         \
 	(rzi_lorawan_backend.network != NULL ? rzi_lorawan_backend.network->member : NULL)
 
-/* Started-check, then call the op or report it unsupported. */
+/* Readiness-check, then call the op or report it unsupported. */
 #define CALL_NETWORK_OP(member, ...)                                                               \
 	do {                                                                                       \
-		int rc_ = rzi_lorawan_check_started();                                             \
+		int rc_ = rzi_lorawan_check_ready();                                               \
                                                                                                    \
 		if (rc_ != 0) {                                                                    \
 			return rc_;                                                                \
@@ -35,7 +35,7 @@
 /* RUI3 parameters no current backend implements; see lorawan.h. */
 static int unsupported(void)
 {
-	int rc = rzi_lorawan_check_started();
+	int rc = rzi_lorawan_check_ready();
 
 	return rc != 0 ? rc : -RZI_ERR_NOT_SUPPORTED;
 }
@@ -94,7 +94,7 @@ int rzi_lorawan_get_data_rate(enum rzi_lorawan_data_rate *data_rate)
 
 int rzi_lorawan_set_data_rate(enum rzi_lorawan_data_rate data_rate)
 {
-	int rc = rzi_lorawan_check_started();
+	int rc = rzi_lorawan_check_ready();
 
 	if (rc != 0) {
 		return rc;

@@ -19,7 +19,7 @@ static bool adr_enabled = true;
 static enum rzi_lorawan_data_rate data_rate = RZI_LORAWAN_DR_0;
 int zephyr_get_class(enum rzi_lorawan_class *value)
 {
-	int rc = rzi_lorawan_zephyr_lock_started();
+	int rc = rzi_lorawan_zephyr_lock_active();
 
 	if (rc != 0) {
 		return rc;
@@ -31,7 +31,7 @@ int zephyr_get_class(enum rzi_lorawan_class *value)
 
 static int zephyr_get_adr(bool *enabled)
 {
-	int rc = rzi_lorawan_zephyr_lock_started();
+	int rc = rzi_lorawan_zephyr_lock_active();
 
 	if (rc != 0) {
 		return rc;
@@ -43,7 +43,7 @@ static int zephyr_get_adr(bool *enabled)
 
 static int zephyr_set_adr(bool enabled)
 {
-	int rc = rzi_lorawan_zephyr_lock_started();
+	int rc = rzi_lorawan_zephyr_lock_active();
 
 	if (rc != 0) {
 		return rc;
@@ -56,7 +56,7 @@ static int zephyr_set_adr(bool enabled)
 
 static int zephyr_get_data_rate(enum rzi_lorawan_data_rate *value)
 {
-	int rc = rzi_lorawan_zephyr_lock_started();
+	int rc = rzi_lorawan_zephyr_lock_active();
 
 	if (rc != 0) {
 		return rc;
@@ -68,7 +68,7 @@ static int zephyr_get_data_rate(enum rzi_lorawan_data_rate *value)
 
 static int zephyr_set_data_rate(enum rzi_lorawan_data_rate value)
 {
-	int rc = rzi_lorawan_zephyr_lock_started();
+	int rc = rzi_lorawan_zephyr_lock_active();
 
 	if (rc != 0) {
 		return rc;
@@ -100,7 +100,7 @@ static uint16_t uplink_data_rate_mask(enum rzi_lorawan_region region)
 
 static int zephyr_get_enabled_data_rates(uint16_t *mask)
 {
-	int rc = rzi_lorawan_zephyr_lock_started();
+	int rc = rzi_lorawan_zephyr_lock_active();
 
 	if (rc != 0) {
 		return rc;
@@ -114,7 +114,7 @@ static int zephyr_query_tx_possible(size_t size)
 {
 	uint8_t next_size = 0;
 	uint8_t max_size = 0;
-	int rc = rzi_lorawan_zephyr_lock_started();
+	int rc = rzi_lorawan_zephyr_lock_active();
 
 	if (rc != 0) {
 		return rc;
@@ -146,7 +146,7 @@ static int zephyr_map_mib(int rc)
 
 static int zephyr_get_dev_addr(uint32_t *dev_addr)
 {
-	int rc = rzi_lorawan_zephyr_lock_started();
+	int rc = rzi_lorawan_zephyr_lock_active();
 
 	if (rc != 0) {
 		return rc;
@@ -158,7 +158,7 @@ static int zephyr_get_dev_addr(uint32_t *dev_addr)
 
 static int zephyr_get_nwk_skey(uint8_t *key)
 {
-	int rc = rzi_lorawan_zephyr_lock_started();
+	int rc = rzi_lorawan_zephyr_lock_active();
 
 	if (rc != 0) {
 		return rc;
@@ -170,7 +170,7 @@ static int zephyr_get_nwk_skey(uint8_t *key)
 
 static int zephyr_get_app_skey(uint8_t *key)
 {
-	int rc = rzi_lorawan_zephyr_lock_started();
+	int rc = rzi_lorawan_zephyr_lock_active();
 
 	if (rc != 0) {
 		return rc;
@@ -182,7 +182,7 @@ static int zephyr_get_app_skey(uint8_t *key)
 
 static int zephyr_get_dev_nonce(uint16_t *dev_nonce)
 {
-	int rc = rzi_lorawan_zephyr_lock_started();
+	int rc = rzi_lorawan_zephyr_lock_active();
 
 	if (rc != 0) {
 		return rc;
@@ -194,7 +194,7 @@ static int zephyr_get_dev_nonce(uint16_t *dev_nonce)
 
 static int zephyr_set_dev_nonce(uint16_t dev_nonce)
 {
-	int rc = rzi_lorawan_zephyr_lock_started();
+	int rc = rzi_lorawan_zephyr_lock_active();
 
 	if (rc != 0) {
 		return rc;
@@ -206,7 +206,7 @@ static int zephyr_set_dev_nonce(uint16_t dev_nonce)
 
 int zephyr_is_busy(bool *busy)
 {
-	int rc = rzi_lorawan_zephyr_lock_started();
+	int rc = rzi_lorawan_zephyr_lock_active();
 
 	if (rc != 0) {
 		return rc;
@@ -229,7 +229,7 @@ static int zephyr_link_check_request(void)
 #ifdef CONFIG_LORAWAN_EMUL
 	return -RZI_ERR_NOT_SUPPORTED;
 #else
-	int rc = rzi_lorawan_zephyr_lock_started();
+	int rc = rzi_lorawan_zephyr_lock_active();
 
 	if (rc != 0) {
 		return rc;
@@ -244,7 +244,7 @@ static int zephyr_device_time_request(void)
 #ifdef CONFIG_LORAWAN_EMUL
 	return -RZI_ERR_NOT_SUPPORTED;
 #else
-	int rc = rzi_lorawan_zephyr_lock_started();
+	int rc = rzi_lorawan_zephyr_lock_active();
 
 	if (rc != 0) {
 		return rc;
@@ -261,7 +261,7 @@ static int zephyr_get_network_time(struct rzi_lorawan_network_time *time)
 	return -RZI_ERR_NOT_SUPPORTED;
 #else
 	uint32_t gps_time = 0;
-	int rc = rzi_lorawan_zephyr_lock_started();
+	int rc = rzi_lorawan_zephyr_lock_active();
 
 	if (rc != 0) {
 		return rc;

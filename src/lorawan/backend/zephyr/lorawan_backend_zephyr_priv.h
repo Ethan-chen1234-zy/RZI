@@ -33,7 +33,7 @@ int rzi_lorawan_zephyr_mib_dev_addr(uint32_t *dev_addr);
 int rzi_lorawan_zephyr_mib_nwk_skey(uint8_t key[16]);
 int rzi_lorawan_zephyr_mib_app_skey(uint8_t key[16]);
 int rzi_lorawan_zephyr_mib_set_channels(uint16_t mask[6]);
-int rzi_lorawan_zephyr_lock_started(void);
+int rzi_lorawan_zephyr_lock_active(void);
 void rzi_lorawan_zephyr_unlock(void);
 bool rzi_lorawan_zephyr_busy(void);
 enum rzi_lorawan_region rzi_lorawan_zephyr_region(void);

@@ -14,7 +14,6 @@
 
 EXPORT_SYMBOL(rzi_get_network_mode);
 EXPORT_SYMBOL(rzi_set_network_mode);
-
 EXPORT_SYMBOL(rzi_init);
 EXPORT_SYMBOL(rzi_err_str);
 EXPORT_SYMBOL(rzi_err_from_errno);
@@ -30,6 +29,9 @@ EXPORT_SYMBOL(rzi_lorawan_unregister_callbacks);
 EXPORT_SYMBOL(rzi_lorawan_set_region);
 EXPORT_SYMBOL(rzi_lorawan_set_join_backoff_bypass);
 EXPORT_SYMBOL(rzi_lorawan_init);
+EXPORT_SYMBOL(rzi_lorawan_stop);
+EXPORT_SYMBOL(rzi_lorawan_deinit);
+EXPORT_SYMBOL(rzi_lorawan_get_state);
 EXPORT_SYMBOL(rzi_lorawan_get_dev_eui);
 EXPORT_SYMBOL(rzi_lorawan_set_dev_eui);
 EXPORT_SYMBOL(rzi_lorawan_get_app_eui);

@@ -45,6 +45,8 @@ enum rzi_lorawan_backend_event_type {
 	RZI_LORAWAN_BACKEND_DUTY_CYCLE,
 	/** Uplinks went unanswered; carries RZI_LORAWAN_EVENT_NO_RX_THRESHOLD_* reasons. */
 	RZI_LORAWAN_BACKEND_NO_DOWNLINK,
+	/** Service-owned dispatcher barrier; never published by a backend. */
+	RZI_LORAWAN_BACKEND_BARRIER,
 };
 
 /** FUOTA session kind carried by RZI_LORAWAN_BACKEND_FUOTA. */
@@ -145,9 +147,13 @@ typedef void (*rzi_lorawan_event_sink_t)(const struct rzi_lorawan_backend_event 
  * service does not shadow it.
  */
 struct rzi_lorawan_base_ops {
-	/** Start the backend and retain the event sink for its lifetime. */
-	int (*start)(enum rzi_lorawan_region region, bool join_backoff_bypass,
-		     rzi_lorawan_event_sink_t event_sink);
+	/** Initialize the backend and retain the event sink while active. */
+	int (*init)(enum rzi_lorawan_region region, bool join_backoff_bypass,
+		    rzi_lorawan_event_sink_t event_sink);
+	/** Stop radio work and detach the sink. NULL means stop is unsupported. */
+	int (*stop)(void);
+	/** Release stopped backend resources. NULL means no additional resources. */
+	int (*deinit)(void);
 	/** Request network activation using the supplied copied credentials. */
 	int (*join)(const struct rzi_lorawan_join_config *config);
 	/** Leave or cancel the active network session. */

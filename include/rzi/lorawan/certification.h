@@ -27,7 +27,7 @@ extern "C" {
  *
  * @retval 0 Value stored.
  * @retval -RZI_ERR_INVALID enabled is NULL.
- * @retval -RZI_ERR_NOT_READY The service has not started.
+ * @retval -RZI_ERR_NOT_READY The service is not active.
  * @retval -RZI_ERR_NOT_SUPPORTED The backend does not support certification mode.
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
@@ -42,7 +42,7 @@ __must_check int rzi_lorawan_get_certification_mode(bool *enabled);
  * @param enabled True to enable certification mode.
  *
  * @retval 0 Setting applied.
- * @retval -RZI_ERR_NOT_READY The service has not started.
+ * @retval -RZI_ERR_NOT_READY The service is not active.
  * @retval -RZI_ERR_NOT_SUPPORTED The backend does not support certification mode.
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
@@ -58,7 +58,7 @@ __must_check int rzi_lorawan_set_certification_mode(bool enabled);
  *
  * @retval 0 Value stored.
  * @retval -RZI_ERR_INVALID enabled is NULL.
- * @retval -RZI_ERR_NOT_READY The service has not started.
+ * @retval -RZI_ERR_NOT_READY The service is not active.
  * @retval -RZI_ERR_NOT_SUPPORTED The backend does not support this setting.
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
@@ -73,7 +73,7 @@ __must_check int rzi_lorawan_get_certification_port_enabled(bool *enabled);
  * @param enabled True to process the certification port.
  *
  * @retval 0 Setting applied.
- * @retval -RZI_ERR_NOT_READY The service has not started.
+ * @retval -RZI_ERR_NOT_READY The service is not active.
  * @retval -RZI_ERR_NOT_SUPPORTED The backend does not support this setting.
  * @retval -RZI_ERR_ISR Called from an ISR.
  *

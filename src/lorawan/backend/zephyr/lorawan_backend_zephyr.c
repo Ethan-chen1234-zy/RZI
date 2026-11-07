@@ -68,11 +68,11 @@ static struct k_work_delayable clock_poll_work;
 static uint8_t clock_poll_left;
 #endif
 #ifdef CONFIG_LORAWAN_FRAG_TRANSPORT
-static bool fuota_services_started;
+static bool fuota_services_active;
 #endif
 #endif
 
-static bool started;
+static bool active;
 static bool joined;
 static bool join_pending;
 static bool join_stop;
@@ -120,10 +120,10 @@ void rzi_lorawan_zephyr_publish(const struct rzi_lorawan_backend_event *event)
 	publish(event);
 }
 
-int rzi_lorawan_zephyr_lock_started(void)
+int rzi_lorawan_zephyr_lock_active(void)
 {
 	k_mutex_lock(&lock, K_FOREVER);
-	if (!started) {
+	if (!active) {
 		k_mutex_unlock(&lock);
 		return -RZI_ERR_NOT_READY;
 	}
@@ -420,7 +420,7 @@ static int zephyr_fuota_start_clock_sync(void)
 	rc = -RZI_ERR_NOT_SUPPORTED;
 #endif
 #ifdef CONFIG_LORAWAN_FRAG_TRANSPORT
-	if (!fuota_services_started) {
+	if (!fuota_services_active) {
 		int frag_rc;
 
 		lorawan_frag_transport_register_descriptor_callback(frag_descriptor);
@@ -428,7 +428,7 @@ static int zephyr_fuota_start_clock_sync(void)
 		if (frag_rc != 0 && rc == 0) {
 			rc = rzi_lorawan_zephyr_err(frag_rc);
 		}
-		fuota_services_started = true;
+		fuota_services_active = true;
 	}
 #endif
 	return rc;
@@ -493,8 +493,8 @@ static const struct rzi_lorawan_fuota_ops zephyr_fuota_ops = {
 
 #endif
 
-static int zephyr_start(enum rzi_lorawan_region selected_region, bool join_backoff_bypass,
-			rzi_lorawan_event_sink_t sink)
+static int zephyr_init(enum rzi_lorawan_region selected_region, bool join_backoff_bypass,
+		       rzi_lorawan_event_sink_t sink)
 {
 	enum lorawan_region selected;
 	int rc;
@@ -543,7 +543,7 @@ static int zephyr_start(enum rzi_lorawan_region selected_region, bool join_backo
 #endif
 
 	k_mutex_lock(&lock, K_FOREVER);
-	started = true;
+	active = true;
 	joined = false;
 	k_mutex_unlock(&lock);
 	publish(&ready);
@@ -572,7 +572,7 @@ static int zephyr_join(const struct rzi_lorawan_join_config *config)
 	int rc = 0;
 
 	k_mutex_lock(&lock, K_FOREVER);
-	if (!started) {
+	if (!active) {
 		rc = -RZI_ERR_NOT_READY;
 	} else if (join_pending || tx_pending) {
 		rc = -RZI_ERR_BUSY;
@@ -614,7 +614,7 @@ static int zephyr_send(uint8_t port, const uint8_t *data, size_t size,
 	int rc = 0;
 
 	k_mutex_lock(&lock, K_FOREVER);
-	if (!started) {
+	if (!active) {
 		rc = -RZI_ERR_NOT_READY;
 	} else if (!joined) {
 		rc = -RZI_ERR_NOT_JOINED;
@@ -670,7 +670,7 @@ static int zephyr_is_joined(bool *is_joined)
 	}
 
 	k_mutex_lock(&lock, K_FOREVER);
-	if (!started) {
+	if (!active) {
 		k_mutex_unlock(&lock);
 		return -RZI_ERR_NOT_READY;
 	}
@@ -681,7 +681,7 @@ static int zephyr_is_joined(bool *is_joined)
 
 const struct rzi_lorawan_backend_api rzi_lorawan_backend = {
 	.capabilities = ZEPHYR_CAPABILITIES,
-	.base.start = zephyr_start,
+	.base.init = zephyr_init,
 	.base.join = zephyr_join,
 	.base.leave = zephyr_leave,
 	.base.send = zephyr_send,

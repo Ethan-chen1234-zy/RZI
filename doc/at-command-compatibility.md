@@ -200,8 +200,8 @@ Asynchronous events are:
 
 ### Network, channel, and last-downlink info
 
-These commands call the public `rzi_lorawan_*` APIs after the LoRaWAN service
-has started. A backend that does not implement the operation returns
+These commands call the public `rzi_lorawan_*` APIs while the LoRaWAN service
+is active. A backend that does not implement the operation returns
 `AT_ERROR` (`-RZI_ERR_NOT_SUPPORTED`). Timing commands use seconds on the AT wire and
 milliseconds in the C API.
 

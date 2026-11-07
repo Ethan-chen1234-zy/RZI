@@ -118,7 +118,7 @@ int rzi_at_lorawan_apply_class(void)
 {
 	struct rzi_at_lorawan_context *context = &rzi_at_lorawan_context;
 
-	if (!context->service_started || context->device_class == RZI_LORAWAN_CLASS_A) {
+	if (!context->service_active || context->device_class == RZI_LORAWAN_CLASS_A) {
 		return 0;
 	}
 	return rzi_lorawan_set_class(context->device_class);
@@ -200,7 +200,7 @@ bool rzi_at_lorawan_is_joined(void)
 {
 	bool joined = false;
 
-	if (!rzi_at_lorawan_context.service_started) {
+	if (!rzi_at_lorawan_context.service_active) {
 		return false;
 	}
 	return rzi_lorawan_is_joined(&joined) == 0 && joined;
@@ -222,7 +222,7 @@ static int start_service(void)
 		atomic_clear(&context->join_pending);
 		return rc;
 	}
-	context->service_started = true;
+	context->service_active = true;
 	return 0;
 }
 
@@ -230,7 +230,7 @@ int rzi_at_lorawan_join_start(void)
 {
 	struct rzi_at_lorawan_context *context = &rzi_at_lorawan_context;
 
-	if (!context->service_started) {
+	if (!context->service_active) {
 		return start_service();
 	}
 	if (rzi_at_lorawan_is_joined()) {
@@ -246,7 +246,7 @@ int rzi_at_lorawan_join_stop(void)
 	struct rzi_at_lorawan_context *context = &rzi_at_lorawan_context;
 
 	atomic_clear(&context->join_pending);
-	return context->service_started ? rzi_lorawan_leave() : 0;
+	return context->service_active ? rzi_lorawan_leave() : 0;
 }
 
 static void continue_pending_join(void)

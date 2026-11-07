@@ -53,8 +53,8 @@ static int io_write(const uint8_t *data, size_t size, void *user_data)
 	return 0;
 }
 
-static int fake_start(enum rzi_lorawan_region region, bool join_backoff_bypass,
-		      rzi_lorawan_event_sink_t event_sink)
+static int fake_init(enum rzi_lorawan_region region, bool join_backoff_bypass,
+		     rzi_lorawan_event_sink_t event_sink)
 {
 	const struct rzi_lorawan_backend_event event = {
 		.type = RZI_LORAWAN_BACKEND_READY,
@@ -120,7 +120,7 @@ static int fake_is_busy(bool *busy)
 
 const struct rzi_lorawan_backend_api rzi_lorawan_backend = {
 	.capabilities = RZI_LORAWAN_CAP_OTAA | RZI_LORAWAN_CAP_CLASS_A | RZI_LORAWAN_CAP_CHANNEL,
-	.base.start = fake_start,
+	.base.init = fake_init,
 	.base.join = fake_join,
 	.base.leave = fake_leave,
 	.base.send = fake_send,

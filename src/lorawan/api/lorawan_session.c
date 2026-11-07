@@ -40,7 +40,7 @@ int rzi_lorawan_get_net_id(uint32_t *net_id)
 int rzi_lorawan_get_dev_nonce(uint16_t *dev_nonce)
 {
 	const struct rzi_lorawan_session_ops *ops;
-	int rc = rzi_lorawan_check_started();
+	int rc = rzi_lorawan_check_ready();
 
 	if (rc != 0) {
 		return rc;
@@ -58,7 +58,7 @@ int rzi_lorawan_get_dev_nonce(uint16_t *dev_nonce)
 int rzi_lorawan_set_dev_nonce(uint16_t dev_nonce)
 {
 	const struct rzi_lorawan_session_ops *ops;
-	int rc = rzi_lorawan_check_started();
+	int rc = rzi_lorawan_check_ready();
 
 	if (rc != 0) {
 		return rc;

@@ -32,7 +32,7 @@ extern "C" {
 
 /** Observable FUOTA session states. */
 enum rzi_fuota_state {
-	/** Service has not started or the device is not joined. */
+	/** Service is not active or the device is not joined. */
 	RZI_FUOTA_STATE_IDLE,
 	/** Joined and waiting for a ChirpStack or network-server session. */
 	RZI_FUOTA_STATE_READY,
@@ -80,7 +80,7 @@ struct rzi_fuota_callbacks {
 /**
  * @brief Register optional FUOTA callbacks.
  *
- * The table is copied. Register before @ref rzi_fuota_start to observe the
+ * The table is copied. Register before @ref rzi_fuota_init to observe the
  * first READY transition.
  *
  * @param callbacks Callback table copied before this function returns.
@@ -95,20 +95,20 @@ struct rzi_fuota_callbacks {
 __must_check int rzi_fuota_register_callbacks(const struct rzi_fuota_callbacks *callbacks);
 
 /**
- * @brief Start FUOTA coordination.
+ * @brief Initialize FUOTA coordination.
  *
  * Clock synchronization starts after the next successful LoRaWAN join. The
  * backend then accepts ChirpStack unicast setup and multicast fragments.
  *
- * @retval 0 Coordination started or already running.
+ * @retval 0 Coordination initialized or already active.
  * @retval -RZI_ERR_NOT_SUPPORTED The selected backend does not advertise FUOTA.
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
- * @note Thread context only. rzi_lorawan_init() starts this service when
+ * @note Thread context only. rzi_lorawan_init() initializes this service when
  *       CONFIG_RZI_LORAWAN_FUOTA is enabled.
  * @since 0.2
  */
-__must_check int rzi_fuota_start(void);
+__must_check int rzi_fuota_init(void);
 
 /**
  * @brief Return the current FUOTA session snapshot.

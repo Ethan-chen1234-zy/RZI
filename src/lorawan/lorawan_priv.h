@@ -97,7 +97,8 @@ int rzi_lorawan_config_set_region(enum rzi_lorawan_region region);
 int rzi_lorawan_config_get_net_id(uint32_t *net_id);
 
 int rzi_lorawan_check_thread(void);
-int rzi_lorawan_check_started(void);
+/** Require an initialized backend; STARTING is not ready for service APIs. */
+int rzi_lorawan_check_ready(void);
 void rzi_lorawan_note_class(enum rzi_lorawan_class device_class);
 void rzi_lorawan_mac_commands_on_uplink(void);
 /** Store join policy fields. @ref RZI_LORAWAN_JOIN_KEEP leaves a field unchanged. */

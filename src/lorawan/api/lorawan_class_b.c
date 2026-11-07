@@ -20,7 +20,7 @@ static const struct rzi_lorawan_class_b_ops *class_b_ops(void)
 int rzi_lorawan_get_ping_slot_periodicity(uint8_t *periodicity)
 {
 	const struct rzi_lorawan_class_b_ops *ops;
-	int rc = rzi_lorawan_check_started();
+	int rc = rzi_lorawan_check_ready();
 
 	if (rc != 0) {
 		return rc;
@@ -38,7 +38,7 @@ int rzi_lorawan_get_ping_slot_periodicity(uint8_t *periodicity)
 int rzi_lorawan_set_ping_slot_periodicity(uint8_t periodicity)
 {
 	const struct rzi_lorawan_class_b_ops *ops;
-	int rc = rzi_lorawan_check_started();
+	int rc = rzi_lorawan_check_ready();
 
 	if (rc != 0) {
 		return rc;
@@ -56,7 +56,7 @@ int rzi_lorawan_set_ping_slot_periodicity(uint8_t periodicity)
 int rzi_lorawan_get_beacon_frequency(uint32_t *frequency_hz)
 {
 	const struct rzi_lorawan_class_b_ops *ops;
-	int rc = rzi_lorawan_check_started();
+	int rc = rzi_lorawan_check_ready();
 
 	if (rc != 0) {
 		return rc;
@@ -74,7 +74,7 @@ int rzi_lorawan_get_beacon_frequency(uint32_t *frequency_hz)
 int rzi_lorawan_get_beacon_time(uint32_t *gps_time)
 {
 	const struct rzi_lorawan_class_b_ops *ops;
-	int rc = rzi_lorawan_check_started();
+	int rc = rzi_lorawan_check_ready();
 
 	if (rc != 0) {
 		return rc;
@@ -92,7 +92,7 @@ int rzi_lorawan_get_beacon_time(uint32_t *gps_time)
 int rzi_lorawan_get_beacon_data_rate(enum rzi_lorawan_data_rate *data_rate)
 {
 	const struct rzi_lorawan_class_b_ops *ops;
-	int rc = rzi_lorawan_check_started();
+	int rc = rzi_lorawan_check_ready();
 
 	if (rc != 0) {
 		return rc;
@@ -110,7 +110,7 @@ int rzi_lorawan_get_beacon_data_rate(enum rzi_lorawan_data_rate *data_rate)
 int rzi_lorawan_get_beacon_gateway(struct rzi_lorawan_beacon_gateway *gateway)
 {
 	const struct rzi_lorawan_class_b_ops *ops;
-	int rc = rzi_lorawan_check_started();
+	int rc = rzi_lorawan_check_ready();
 
 	if (rc != 0) {
 		return rc;
@@ -128,7 +128,7 @@ int rzi_lorawan_get_beacon_gateway(struct rzi_lorawan_beacon_gateway *gateway)
 int rzi_lorawan_get_class_b_state(enum rzi_lorawan_class_b_state *state)
 {
 	const struct rzi_lorawan_class_b_ops *ops;
-	int rc = rzi_lorawan_check_started();
+	int rc = rzi_lorawan_check_ready();
 
 	if (rc != 0) {
 		return rc;
@@ -146,7 +146,7 @@ int rzi_lorawan_get_class_b_state(enum rzi_lorawan_class_b_state *state)
 int rzi_lorawan_stop_class_b(void)
 {
 	const struct rzi_lorawan_class_b_ops *ops;
-	int rc = rzi_lorawan_check_started();
+	int rc = rzi_lorawan_check_ready();
 
 	if (rc != 0) {
 		return rc;
