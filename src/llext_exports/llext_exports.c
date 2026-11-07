@@ -9,7 +9,11 @@
 
 #include <rzi/err.h>
 #include <rzi/init.h>
+#include <rzi/network_mode.h>
 #include <rzi/version.h>
+
+EXPORT_SYMBOL(rzi_get_network_mode);
+EXPORT_SYMBOL(rzi_set_network_mode);
 
 EXPORT_SYMBOL(rzi_init);
 EXPORT_SYMBOL(rzi_err_str);

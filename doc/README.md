@@ -39,6 +39,7 @@ switches, and limits that do not belong in a header comment.
 | [lorawan-backends.md](./lorawan-backends.md) | implemented | USP vs Zephyr build switch |
 | [lorawan-backend-zephyr.md](./lorawan-backend-zephyr.md) | evaluation | Zephyr `lorawan_*` adapter |
 | [fuota.md](./fuota.md) | implemented | ChirpStack FUOTA (dual-slot) |
+| [network-mode-api.md](./network-mode-api.md) | implemented | Network working-mode persistence |
 | [storage-api.md](./storage-api.md) | implemented | Namespaced key-value storage |
 | [power-api.md](./power-api.md) | implemented | `rzi_power_*` C contract |
 | [at-framework.md](./at-framework.md) | implemented | AT framework, registry, adapters |

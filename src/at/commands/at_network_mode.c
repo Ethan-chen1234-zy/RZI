@@ -12,18 +12,17 @@
 #include <zephyr/sys/reboot.h>
 #include <zephyr/sys/util.h>
 
-#if defined(CONFIG_RZI_AT_NVM)
-#include <rzi/storage/storage.h>
-#endif
-
 #include "../at_priv.h"
 #include "at_network_mode.h"
 
-#define LISTENER_MAX 2U
+#define RZI_ATCMD_NWM "NWM"
 
-static uint8_t network_mode = IS_ENABLED(CONFIG_RZI_AT_COMMAND_LORAWAN)
-				      ? RZI_AT_NETWORK_MODE_LORAWAN
-				      : RZI_AT_NETWORK_MODE_P2P_LORA;
+#define LISTENER_MAX 2U
+#define DEFAULT_NETWORK_MODE                                                                       \
+	(IS_ENABLED(CONFIG_RZI_AT_COMMAND_LORAWAN) ? RZI_NETWORK_MODE_LORAWAN                      \
+						   : RZI_NETWORK_MODE_P2P_LORA)
+
+static enum rzi_network_mode network_mode = DEFAULT_NETWORK_MODE;
 static rzi_at_network_mode_changed_t listeners[LISTENER_MAX];
 static size_t listener_count;
 
@@ -41,7 +40,7 @@ static int parse_long(const char *argument, long *value)
 	return 0;
 }
 
-static int notify_listeners(uint8_t mode)
+static int notify_listeners(enum rzi_network_mode mode)
 {
 	int rc = 0;
 
@@ -58,34 +57,22 @@ static int notify_listeners(uint8_t mode)
 #if defined(CONFIG_RZI_AT_NVM)
 static int load_mode(void)
 {
-	uint8_t stored = 0U;
-	int rc = rzi_storage_init();
+	enum rzi_network_mode stored;
+	int rc = rzi_get_network_mode(&stored);
 
-	if (rc != 0) {
-		return rc;
-	}
-	rc = rzi_storage_read("rzi", "nwm", &stored, sizeof(stored));
 	if (rc == -RZI_ERR_NOT_FOUND) {
 		return 0;
 	}
 	if (rc != 0) {
 		return rc;
 	}
-	if (stored > RZI_AT_NETWORK_MODE_P2P_FSK) {
-		return 0;
-	}
 	network_mode = stored;
 	return 0;
 }
 
-static int save_mode(uint8_t mode)
+static int save_mode(enum rzi_network_mode mode)
 {
-	int rc = rzi_storage_init();
-
-	if (rc != 0) {
-		return rc;
-	}
-	return rzi_storage_write("rzi", "nwm", &mode, sizeof(mode));
+	return rzi_set_network_mode(mode);
 }
 #else
 static int load_mode(void)
@@ -93,19 +80,19 @@ static int load_mode(void)
 	return 0;
 }
 
-static int save_mode(uint8_t mode)
+static int save_mode(enum rzi_network_mode mode)
 {
 	ARG_UNUSED(mode);
 	return 0;
 }
 #endif
 
-uint8_t rzi_at_network_mode_get(void)
+enum rzi_network_mode rzi_at_get_network_mode(void)
 {
 	return network_mode;
 }
 
-int rzi_at_network_mode_add_listener(rzi_at_network_mode_changed_t listener)
+int rzi_at_add_network_mode_listener(rzi_at_network_mode_changed_t listener)
 {
 	if (listener == NULL) {
 		return -RZI_ERR_INVALID;
@@ -124,17 +111,17 @@ static int handle_nwm(const struct rzi_at_request *request, void *user_data)
 
 	ARG_UNUSED(user_data);
 	if (request->operation == RZI_AT_OP_READ) {
-		return rzi_at_respond_value("AT+NWM=%u", network_mode);
+		return rzi_at_respond_value(RZI_AT_VALUE(RZI_ATCMD_NWM, "%u"), network_mode);
 	}
 	rc = parse_long(request->argument, &parsed);
-	if (rc != 0 || parsed < 0 || parsed > (long)RZI_AT_NETWORK_MODE_P2P_FSK) {
+	if (rc != 0 || parsed < 0 || parsed > (long)RZI_NETWORK_MODE_P2P_FSK) {
 		return -RZI_ERR_INVALID;
 	}
-	if ((uint8_t)parsed != RZI_AT_NETWORK_MODE_LORAWAN &&
+	if ((enum rzi_network_mode)parsed != RZI_NETWORK_MODE_LORAWAN &&
 	    !IS_ENABLED(CONFIG_RZI_AT_COMMAND_LORA)) {
 		return -RZI_ERR_NOT_SUPPORTED;
 	}
-	if ((uint8_t)parsed == network_mode) {
+	if ((enum rzi_network_mode)parsed == network_mode) {
 		return rzi_at_respond_status(RZI_AT_STATUS_OK);
 	}
 	/*
@@ -142,9 +129,9 @@ static int handle_nwm(const struct rzi_at_request *request, void *user_data)
 	 * must not leave P2P mode in flash, or every later boot faults too.
 	 */
 	{
-		uint8_t previous = network_mode;
+		enum rzi_network_mode previous = network_mode;
 
-		network_mode = (uint8_t)parsed;
+		network_mode = (enum rzi_network_mode)parsed;
 		rc = notify_listeners(network_mode);
 		if (rc == 0) {
 			rc = save_mode(network_mode);
@@ -163,7 +150,7 @@ static int handle_nwm(const struct rzi_at_request *request, void *user_data)
 }
 
 static const struct rzi_at_command nwm_command = {
-	.name = "NWM",
+	.name = RZI_ATCMD_NWM,
 	.help = "get or set the network working mode (0 = P2P_LORA, 1 = LoRaWAN, 2 = P2P_FSK)",
 	.allowed_operations = RZI_AT_ALLOW_READ | RZI_AT_ALLOW_WRITE,
 	.handler = handle_nwm,
@@ -172,9 +159,7 @@ static const struct rzi_at_command nwm_command = {
 #if defined(CONFIG_RZI_AT_NVM)
 static int extension_factory_reset(void)
 {
-	int rc = rzi_storage_delete("rzi", "nwm");
-
-	return (rc == 0 || rc == -RZI_ERR_NOT_FOUND) ? 0 : rc;
+	return save_mode(DEFAULT_NETWORK_MODE);
 }
 
 static const struct rzi_at_extension extension = {
@@ -182,21 +167,14 @@ static const struct rzi_at_extension extension = {
 };
 #endif
 
-int rzi_at_network_mode_restore_default(void)
+int rzi_at_restore_default_network_mode(void)
 {
-	network_mode = IS_ENABLED(CONFIG_RZI_AT_COMMAND_LORAWAN) ? RZI_AT_NETWORK_MODE_LORAWAN
-								 : RZI_AT_NETWORK_MODE_P2P_LORA;
-#if defined(CONFIG_RZI_AT_NVM)
-	int rc = rzi_storage_init();
+	int rc = save_mode(DEFAULT_NETWORK_MODE);
 
-	if (rc != 0) {
-		return rc;
+	if (rc == 0) {
+		network_mode = DEFAULT_NETWORK_MODE;
 	}
-	rc = rzi_storage_delete("rzi", "nwm");
-	return (rc == 0 || rc == -RZI_ERR_NOT_FOUND) ? 0 : rc;
-#else
-	return 0;
-#endif
+	return rc;
 }
 
 int rzi_at_network_mode_register(void)

@@ -51,7 +51,7 @@ tools/sbom/generate-sbom.sh --allow-dirty
 |---|---|
 | `include/rzi/` | Public C ABI. Applications may only `#include <rzi/...>` |
 | `src/<service>/` | Implementation and private headers for that service |
-| `src/common/` | Implementations of module-level public headers (`err.h`, `version.h`) only. Not a product service and not a place for shared helpers |
+| `src/common/` | Implementations of module-level public headers (`err.h`, `version.h`, `network_mode.h`) only. Not a product service and not a place for shared helpers |
 | `samples/`, `tests/` | Samples and tests; mirror the service under test |
 | `doc/` | Standards and architecture. Lowercase kebab-case names; do not repeat `rzi` |
 
@@ -62,6 +62,7 @@ Public headers use one subdirectory per service, matching Zephyr
 include/rzi/
 ├── err.h
 ├── version.h
+├── network_mode.h
 ├── lorawan/lorawan.h
 ├── lorawan/fuota.h
 ├── lorawan/multicast.h
@@ -84,6 +85,43 @@ src/lorawan/
 
 Private headers must sit next to the implementation. They must not enter
 `include/rzi/` before a callable public contract exists.
+
+### 2.1 Dependency direction
+
+Dependencies MUST point inward through the public service boundary:
+
+```text
+application / inbound adapter
+  -> public RZI API
+  -> service implementation
+  -> private backend contract
+  -> platform or vendor API
+```
+
+Code MUST NOT skip a layer to reach a private implementation below it.
+Specifically, AT is an inbound adapter rather than a core business service:
+
+| Location | MAY depend on | MUST NOT depend on |
+|---|---|---|
+| `src/at/at*.c`, `src/at/at_priv.h` | AT public/private contracts and Zephyr kernel primitives | Service backends or vendor protocol APIs |
+| `src/at/commands/` | AT private contracts and public `<rzi/...>` service headers | Private service/backend headers, Zephyr Settings, protocol stacks, or radio drivers |
+| `src/at/adapters/` | Public AT headers and the selected transport API | Business-service backends |
+
+An AT command that needs Storage, Power, LoRaWAN, raw LoRa, FUOTA, or another
+business capability MUST call that service's public RZI API. It MUST NOT call
+`settings_*`, `smtc_*`, `LoRaMac*`, Zephyr `lorawan_*`, or Zephyr `lora_*`
+directly.
+
+Shared configuration keys MUST be owned by a typed public config or service
+API. Inbound adapters MUST NOT define their storage namespace, key,
+representation, or migration. Adapter-private settings that have no meaning
+outside that adapter MAY remain adapter-owned.
+
+Transport and platform mechanics are narrow exceptions: an AT UART or BLE
+adapter MAY use its matching Zephyr transport API, and system commands MAY use
+Zephyr reboot, hardware-identity, UART-configuration, or Bluetooth-identity
+APIs when no RZI business service owns that capability. Such calls MUST remain
+inside the corresponding adapter or system-command implementation.
 
 ## 3. Naming
 
@@ -114,7 +152,7 @@ Private headers must sit next to the implementation. They must not enter
 - Dependent public APIs hang under their owning service:
   `include/rzi/at/uart.h`.
 - Module-level headers may stay at `include/rzi/`: `err.h`, `init.h`,
-  `version.h`.
+  `version.h`, `network_mode.h`.
 - Backend implementations:
   `src/<service>/backend/<service>_backend_<backend>.c`.
 - Tests and samples start with the service name and then describe the behavior,
@@ -155,7 +193,7 @@ rzi_<service>_<operation>()
 ```
 
 Module-level operations without an owning service use `rzi_<operation>()`,
-for example `rzi_init()`. Do not invent a service
+for example `rzi_init()` and `rzi_get_network_mode()`. Do not invent a service
 prefix just to fit the service-specific form.
 
 ```c
@@ -175,6 +213,11 @@ rzi_at_uart_start()
 - Use `get_<noun>` when copying into an output parameter.
 - Use `is_<state>` for boolean queries.
 - Use `set_<noun>` only when changing an existing setting.
+- Do not expose per-setting persistence operations such as load, save, or
+  clear when get/set express the public contract. Factory reset belongs to
+  the owning reset flow. Keep transport and storage operations that are the
+  actual service contract, such as `rzi_storage_read()` and
+  `rzi_storage_write()`.
 - Do not keep two spellings of the same operation (no `get_status` and
   `status_get` together).
 - Public functions must not carry a backend name.
@@ -427,7 +470,8 @@ CI still applies. See [CONTRIBUTING.md](../CONTRIBUTING.md) for commands and
 
 - [ ] Files and directories are lowercase `snake_case`. Production-library
       files carry a service prefix.
-- [ ] Public headers live under `include/rzi/<service>/`. Applications only
+- [ ] Service headers live under `include/rzi/<service>/`; module-level
+      headers may live directly under `include/rzi/`. Applications only
       `#include <rzi/...>`.
 - [ ] Public symbols are `rzi_` / `RZI_`. Functions are
       `rzi_<service>_<operation>()`, or `rzi_<operation>()` for module-level APIs.
@@ -435,6 +479,11 @@ CI still applies. See [CONTRIBUTING.md](../CONTRIBUTING.md) for commands and
 - [ ] Private helper verbs describe their behavior; boolean names and time
       units are explicit. `_locked` helpers document the required lock.
 - [ ] Backend / board / protocol-stack names did not enter the public API.
+- [ ] AT business commands use public RZI service APIs and do not include
+      private service/backend headers or call protocol stacks, Settings, or
+      radio drivers directly.
+- [ ] AT transport and system-platform exceptions remain in their owning
+      adapter or system-command implementation.
 - [ ] AT command names have no `AT+` and are uppercase ASCII.
 - [ ] Return values and asynchronous completion are not mixed. Errors are
       negative `RZI_ERR_*` values.

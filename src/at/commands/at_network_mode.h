@@ -7,31 +7,24 @@
 #ifndef RZI_AT_NETWORK_MODE_H
 #define RZI_AT_NETWORK_MODE_H
 
-#include <stdint.h>
-
-/** P2P LoRa working mode. */
-#define RZI_AT_NETWORK_MODE_P2P_LORA 0U
-/** LoRaWAN working mode. */
-#define RZI_AT_NETWORK_MODE_LORAWAN  1U
-/** P2P FSK working mode. */
-#define RZI_AT_NETWORK_MODE_P2P_FSK  2U
+#include <rzi/network_mode.h>
 
 /** Notify a package after AT+NWM has been written. Return 0 or a negative error. */
-typedef int (*rzi_at_network_mode_changed_t)(uint8_t mode);
+typedef int (*rzi_at_network_mode_changed_t)(enum rzi_network_mode mode);
 
 /** Return the current working mode. */
-uint8_t rzi_at_network_mode_get(void);
+enum rzi_network_mode rzi_at_get_network_mode(void);
 
 /** Subscribe to working-mode changes. @p listener must have static lifetime. */
-int rzi_at_network_mode_add_listener(rzi_at_network_mode_changed_t listener);
+int rzi_at_add_network_mode_listener(rzi_at_network_mode_changed_t listener);
 
 /** Register AT+NWM and load any persisted working mode. */
 int rzi_at_network_mode_register(void);
 
 /**
- * Forget a persisted working mode and return to the build default.
- * Used when P2P radio start fails, so the next boot still brings AT up.
+ * Store the build default and update the AT working mode after success.
+ * Used when P2P radio initialization fails, so the next boot still brings AT up.
  */
-int rzi_at_network_mode_restore_default(void);
+int rzi_at_restore_default_network_mode(void);
 
 #endif /* RZI_AT_NETWORK_MODE_H */

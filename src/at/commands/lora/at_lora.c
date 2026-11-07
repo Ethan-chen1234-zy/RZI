@@ -92,27 +92,27 @@ int rzi_at_lora_parse_bool(const char *argument, bool *value)
 	return -RZI_ERR_INVALID;
 }
 
-static int on_network_mode(uint8_t mode)
+static int on_network_mode(enum rzi_network_mode mode)
 {
-	if (mode == RZI_AT_NETWORK_MODE_LORAWAN) {
+	if (mode == RZI_NETWORK_MODE_LORAWAN) {
 		return rzi_lora_stop();
 	}
-	return rzi_lora_init(mode == RZI_AT_NETWORK_MODE_P2P_FSK ? RZI_LORA_MOD_FSK
-								 : RZI_LORA_MOD_LORA);
+	return rzi_lora_init(mode == RZI_NETWORK_MODE_P2P_FSK ? RZI_LORA_MOD_FSK
+							      : RZI_LORA_MOD_LORA);
 }
 
 int rzi_at_lora_ensure_started(void)
 {
-	uint8_t mode = rzi_at_network_mode_get();
+	enum rzi_network_mode mode = rzi_at_get_network_mode();
 
-	if (mode == RZI_AT_NETWORK_MODE_LORAWAN) {
+	if (mode == RZI_NETWORK_MODE_LORAWAN) {
 		return -RZI_ERR_BUSY;
 	}
 	if (rzi_lora_is_started()) {
 		return 0;
 	}
-	return rzi_lora_init(mode == RZI_AT_NETWORK_MODE_P2P_FSK ? RZI_LORA_MOD_FSK
-								 : RZI_LORA_MOD_LORA);
+	return rzi_lora_init(mode == RZI_NETWORK_MODE_P2P_FSK ? RZI_LORA_MOD_FSK
+							      : RZI_LORA_MOD_LORA);
 }
 
 static void on_tx_done(int error, void *user_data)
@@ -153,7 +153,7 @@ static int extension_start(void)
 	if (rc != 0) {
 		return rc;
 	}
-	p2p_start_pending = rzi_at_network_mode_get() != RZI_AT_NETWORK_MODE_LORAWAN;
+	p2p_start_pending = rzi_at_get_network_mode() != RZI_NETWORK_MODE_LORAWAN;
 	return 0;
 }
 
@@ -161,9 +161,9 @@ static void extension_process(void)
 {
 	if (p2p_start_pending) {
 		p2p_start_pending = false;
-		if (rzi_at_network_mode_get() != RZI_AT_NETWORK_MODE_LORAWAN &&
+		if (rzi_at_get_network_mode() != RZI_NETWORK_MODE_LORAWAN &&
 		    rzi_at_lora_ensure_started() != 0) {
-			(void)rzi_at_network_mode_restore_default();
+			(void)rzi_at_restore_default_network_mode();
 		}
 	}
 	rzi_lora_poll();
@@ -181,7 +181,7 @@ int rzi_at_lora_register(void)
 		&rzi_at_lora_test_group,
 	};
 
-	int rc = rzi_at_network_mode_add_listener(on_network_mode);
+	int rc = rzi_at_add_network_mode_listener(on_network_mode);
 
 	if (rc != 0) {
 		return rc;

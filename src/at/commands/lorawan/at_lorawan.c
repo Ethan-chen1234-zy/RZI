@@ -361,8 +361,7 @@ static int extension_start(void)
 		if (rc == 0) {
 			rc = rzi_lorawan_get_auto_join(&auto_join);
 		}
-		if (rc == 0 && auto_join &&
-		    rzi_at_network_mode_get() == RZI_AT_NETWORK_MODE_LORAWAN &&
+		if (rc == 0 && auto_join && rzi_at_get_network_mode() == RZI_NETWORK_MODE_LORAWAN &&
 		    rzi_at_lorawan_join_start() != 0) {
 			at_event("JOIN_FAILED_RX_TIMEOUT");
 		}

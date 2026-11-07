@@ -78,12 +78,13 @@ complete applications. Product code does not belong in the RZI repository.
 flowchart TB
     APP[Zephyr C application]
     CPP[Arduino Core for Zephyr<br/>RUI-style C++ API]
-    AT[AT client]
+    ATCLIENT[AT client]
 
     subgraph RZI[RZI SDK - stable C contract]
+        AT[AT inbound adapter]
         API[Public service APIs]
         CORE[Service state and event model]
-        SERVICES[AT / storage / power / FUOTA / diagnostics]
+        SERVICES[Storage / power / FUOTA / diagnostics]
         BACKEND[Private backend adapters]
     end
 
@@ -94,9 +95,11 @@ flowchart TB
 
     APP --> API
     CPP --> API
-    AT --> SERVICES
-    SERVICES --> API
+    ATCLIENT --> AT
+    AT --> API
+    AT --> ZAPI
     API --> CORE --> BACKEND
+    CORE --> SERVICES
     BACKEND --> USP
     BACKEND --> ZLBM
     CORE --> ZAPI
@@ -107,8 +110,10 @@ flowchart TB
 ```
 
 The public C API is the compatibility boundary. Backend changes stop at the
-private adapter. AT commands and the Arduino C++ wrapper are clients of the
-public API and never call a backend directly.
+private adapter. AT is an inbound adapter and the Arduino C++ wrapper is
+another public-API client. Neither calls a backend directly. AT may use Zephyr
+kernel primitives and its selected transport API, but business operations pass
+through public `include/rzi/` service APIs.
 
 ## 4. Responsibility model
 
@@ -217,6 +222,7 @@ include/rzi/
 ├── err.h                      Closed public error catalog
 ├── init.h                     Shared infrastructure initialization
 ├── version.h                  SDK version and compatibility queries
+├── network_mode.h             Network working-mode persistence
 ├── lorawan/lorawan.h          Backend-independent LoRaWAN service
 ├── lorawan/multicast.h        Multicast-session facade
 ├── lorawan/certification.h    Certification-mode facade
@@ -228,8 +234,8 @@ include/rzi/
 └── diagnostics/diagnostics.h  Stable counters and health data (planned)
 ```
 
-`err.h`, `init.h`, `version.h`, and the lorawan, at, storage, and power
-headers are implemented. `rzi_init()` eagerly prepares parameter-free shared
+`err.h`, `init.h`, `version.h`, `network_mode.h`, and the lorawan, at, storage,
+and power headers are implemented. `rzi_init()` eagerly prepares parameter-free shared
 infrastructure such as storage so applications can fail early during boot.
 Services that require application configuration or own active hardware
 resources retain independent lifecycle APIs. Shared dependencies may also
@@ -399,6 +405,39 @@ LoRaWAN command package implemented.
 AT is a client of public RZI services. It does not call `smtc_modem_*`, Zephyr
 LoRaWAN, or private backend APIs directly.
 
+### AT dependency boundary
+
+AT is an inbound adapter, not a core business service. Its dependency direction
+is one-way:
+
+```text
+AT client
+  -> AT transport adapter
+  -> AT parser / command package
+  -> public RZI service API
+  -> service core
+  -> private backend
+  -> Zephyr / USP / vendor implementation
+```
+
+AT code must follow these boundaries:
+
+| AT component | Allowed dependencies | Forbidden dependencies |
+|---|---|---|
+| Core (`src/at/at*.c`) | AT private headers, public AT API, Zephyr kernel primitives | Service backends and vendor protocol APIs |
+| Commands (`src/at/commands/`) | AT private headers and public `include/rzi/` service APIs | Private service headers, backend headers, direct Settings or protocol-stack APIs |
+| Transport adapters (`src/at/adapters/`) | Public AT API and the selected transport API, such as Zephyr UART or GATT | LoRaWAN, raw-radio, storage, power, and update backends |
+
+Platform-facing system commands such as reboot, hardware identity, UART
+configuration, or Bluetooth identity may use the corresponding Zephyr platform
+API when no RZI business service owns that capability. This exception does not
+permit direct access to protocol stacks, persistent Settings, Semtech
+USP/LBM/RAC, or radio drivers.
+
+When an AT command needs a new business capability, that capability is added to
+the owning public RZI service first. The AT command then adapts the public API;
+it must not create a backend shortcut.
+
 The implementation separates protocol processing, command packages, and I/O:
 
 ```text
@@ -449,7 +488,8 @@ Persistent state has separate owners:
 
 | State | Owner | Examples |
 |---|---|---|
-| Product/RZI configuration | RZI storage | region, join mode, product settings |
+| Network working mode | Module-level network-mode persistence API | LoRa / LoRaWAN / FSK selection |
+| Service configuration | Owning RZI service | region, join mode, product settings |
 | Secrets | Provisioning/security layer | DevEUI, JoinEUI, AppKey/NwkKey |
 | LoRaWAN protocol context | Backend | frame counters, DevNonce, session, ADR |
 | Update state | RZI FUOTA | progress, image version, pending confirmation |
@@ -462,7 +502,7 @@ future storage-layer responsibilities. Suggested namespaces are:
 
 ```text
 rzi/meta/*
-rzi/config/*
+rzi/network_mode
 rzi/at/*
 rzi/fuota/*
 ```
@@ -470,6 +510,14 @@ rzi/fuota/*
 RZI does not copy or edit opaque backend context. Production credentials are
 not compiled into DTS, logged, or returned by diagnostics. Sample overlays use
 zero credentials only as build placeholders.
+
+AT, BLE, Shell, and applications do not own Storage keys for shared
+configuration. They call the typed API of the owning service. For example,
+`AT+NWM` calls `rzi_get_network_mode()` and
+`rzi_set_network_mode()`; only the network-mode persistence API owns that value's
+namespace, record version, representation, and validation. Its implementation
+lives in `src/common/network_mode_store.c` and uses the `rzi/network_mode`
+storage path.
 
 ## 11. Power management
 
