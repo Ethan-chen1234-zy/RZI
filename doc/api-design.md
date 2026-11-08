@@ -43,15 +43,6 @@ mode is the instance: `rzi_get_network_mode()` / `rzi_set_network_mode()`
 persist the mode, and `AT+NWM` only coordinates the active radio around that
 value. The persistence call does not start or stop a radio service.
 
-```mermaid
-flowchart LR
-    AT["AT+NWM"] -->|persist| API["rzi_get_network_mode()<br/>rzi_set_network_mode()"]
-    APP[Application] -->|persist| API
-    OTHER[Other front ends] -->|persist| API
-    API --> REC["Storage record<br/>rzi/network_mode"]
-    AT -->|coordinate radios| RADIO[Active radio services]
-```
-
 **Bring-up is `init`, and a failed `init` stays retryable.** A one-shot
 startup is initialization, not a second processing phase, so the public verb
 is `init`. `rzi_init()` prepares only parameter-free shared infrastructure,
@@ -86,52 +77,6 @@ the `AT+` line stay the same string.
 ## 3. Layers
 
 Dependencies point inward. Code must not skip a layer.
-
-```mermaid
-flowchart TB
-    subgraph fronts [Front ends]
-        APP[Application and sample]
-        CPP[Arduino Core C++]
-        ATCMD[AT command package]
-        ATIO[AT transport adapter]
-    end
-
-    subgraph abi [Public ABI]
-        INIT["rzi_init()"]
-        SVC["rzi_service_*()"]
-        MODE[Typed shared config]
-    end
-
-    subgraph impl [Service implementation]
-        STORE[Parameter-free infrastructure]
-        CORE[Service core]
-        BE[Private backend]
-    end
-
-    subgraph plat [Platform]
-        ENG[Shared engine refcount]
-        STACK[Protocol stack]
-        Z[Zephyr]
-    end
-
-    APP --> SVC
-    APP --> INIT
-    APP --> MODE
-    CPP --> SVC
-    ATCMD --> SVC
-    ATCMD --> MODE
-    ATCMD -. platform commands only .-> Z
-    ATIO --> Z
-    INIT --> STORE
-    MODE --> STORE
-    SVC --> CORE
-    CORE --> BE
-    BE --> ENG
-    BE --> STACK
-    STORE --> Z
-    ENG --> Z
-    STACK --> Z
-```
 
 | Caller | May use | Must not use |
 |---|---|---|
@@ -182,7 +127,7 @@ storage, and may run eagerly and repeatedly. LoRaWAN, raw LoRa, AT, and any
 service that needs configuration or owns active hardware keeps its own
 `init`.
 
-## 5. Lifecycle
+## 6. Lifecycle
 
 A service with a public lifecycle has exactly one authoritative state, owned
 by the service core. Queries and lifecycle events read or originate from
@@ -198,44 +143,14 @@ valid.
 `stop` and `deinit` serialize with callbacks and in-flight backend work.
 If either fails, ownership and the last usable lifecycle state stay
 retryable. An API that waits for its own dispatcher rejects calls made from
-that dispatcher's callbacks.
-
-```mermaid
-stateDiagram-v2
-    direction LR
-    [*] --> Inactive
-    Inactive --> Active: init
-    Inactive --> Inactive: init failed, retry
-    Active --> Active: init returns ALREADY
-    Active --> Retained: stop
-    Active --> Active: stop failed
-    Retained --> Retained: stop
-    Inactive --> Inactive: stop
-    Retained --> Active: init
-    Active --> Inactive: deinit
-    Retained --> Inactive: deinit
-    Active --> Active: deinit failed before release
-    Retained --> Retained: release failed
-    Inactive --> Inactive: deinit
-```
-
-`Inactive` means this service does not hold the shared engine. `Retained`
-means `stop` succeeded: active work has ended, and configuration,
-subscribers, and the engine reference remain. `Active` means `init`
-succeeded. `stop` is idempotent when the service is already stopped.
-`deinit` is idempotent only after the reference is already released. A
-second `init` while the service is active returns `-RZI_ERR_ALREADY`.
+that dispatcher's callbacks. A second `init` while the service is active
+returns `-RZI_ERR_ALREADY`.
 
 LoRaWAN and raw LoRa take the engine reference in `init` only when they do
 not already hold it, and they drop it in `deinit`. `stop` does not change
-the count. The last release sleeps the radio and parks the engine.
-
-```mermaid
-flowchart LR
-    LW["LoRaWAN init / deinit"] -->|acquire / release| ENG[USP platform refcount]
-    P2P["raw LoRa init / deinit"] -->|acquire / release| ENG
-    ENG -->|count reaches 0| SLEEP[Sleep radio and park engine]
-```
+the count. The last release sleeps the radio and parks the engine. The
+LoRaWAN queryable states are `STOPPED`, `STARTING`, `READY`, `JOINING`, and
+`JOINED`; the transition list is in [lorawan-api.md](./lorawan-api.md).
 
 Lifecycle verbs:
 
@@ -248,7 +163,7 @@ Lifecycle verbs:
 Expose `start` only when initialization and processing are distinct phases.
 One-shot startup uses `init`.
 
-## 6. Names
+## 7. Names
 
 Every public symbol starts with `rzi_` or `RZI_`. Source identifiers are
 English ASCII. Names describe the responsibility. Established domain words
@@ -278,7 +193,7 @@ Typedefs end in `_t`. Struct and enum tags do not.
 Kconfig is `RZI_<SERVICE>_<OPTION>`, one `zephyr/Kconfig.<service>` per
 service. Child options keep the full parent prefix.
 
-## 7. Call contract
+## 8. Call contract
 
 Public functions return `0` (`RZI_SUCCESS`) or the negation of one
 `enum rzi_err` value. Catalog integers start at 1000 so a leaked Zephyr
@@ -294,21 +209,6 @@ Before a backend is entered:
 - reject an ISR caller of a thread-context API with `-RZI_ERR_ISR`.
 
 Asynchrony:
-
-```mermaid
-sequenceDiagram
-    participant App
-    participant API as Public API
-    participant Core as Service core
-    participant BE as Backend
-    App->>API: rzi_* request
-    API->>Core: validate arguments
-    Core->>BE: accept work and copy the request
-    API-->>App: 0 means accepted
-    BE-->>Core: completion
-    Note over Core: update state, then publish
-    Core-->>App: typed event callback
-```
 
 - If `0` means "request accepted", the header says so. Completion is a typed event. Callers do not infer completion from the return value.
 - Copy asynchronous request data before return, or fix its lifetime in the contract.
@@ -327,7 +227,7 @@ Results the caller must consume use `__must_check`. Variadic format
 functions use `__printf_like`. Public APIs run in supervisor mode and do
 not use `__syscall`.
 
-## 8. Documentation and versions
+## 9. Documentation and versions
 
 Every production-library `.c` and `.h` file has `@file` and `@brief`. Each
 public header joins one service `@defgroup` with `@since` and `@version`,
@@ -349,7 +249,7 @@ Annotation syntax and the review list are in
 [api-docs.md](./api-docs.md). Generate the HTML manual with
 `tools/docs/generate-doxygen.sh`. Output is not committed.
 
-## 9. Adding or changing an API
+## 10. Adding or changing an API
 
 1. Put the declaration in the owning public header. Add the header only when the service does not already have one.
 2. Name it with `rzi_` / `RZI_` and a single operation verb. Leave backend and board names out.
