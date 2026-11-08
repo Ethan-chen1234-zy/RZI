@@ -97,7 +97,7 @@ mutex, including releases on leave.
 Without `CONFIG_PM`, only reference counts are tracked; these references
 do not restrict ordinary CPU idle or device runtime PM.
 
-With `CONFIG_RZI_POWER_AUTO_SERVICE_LOCK=y`:
+With `CONFIG_RZI_POWER=y`:
 
 | PM lock | Owner |
 |---|---|

@@ -20,7 +20,7 @@
 #include <rzi/err.h>
 #include <rzi/storage/storage.h>
 
-#if defined(CONFIG_RZI_POWER) && defined(CONFIG_RZI_POWER_AUTO_SERVICE_LOCK)
+#if defined(CONFIG_RZI_POWER)
 #include <rzi/power/power.h>
 
 static __maybe_unused void ignore_result(int result)
@@ -127,7 +127,7 @@ int rzi_storage_write(const char *namespace_name, const char *key, const void *v
 		return rc;
 	}
 	k_mutex_lock(&storage_lock, K_FOREVER);
-#if defined(CONFIG_RZI_POWER) && defined(CONFIG_RZI_POWER_AUTO_SERVICE_LOCK)
+#if defined(CONFIG_RZI_POWER)
 	rc = rzi_power_lock_get(RZI_POWER_LOCK_FLASH);
 	if (rc != 0) {
 		k_mutex_unlock(&storage_lock);
@@ -135,7 +135,7 @@ int rzi_storage_write(const char *namespace_name, const char *key, const void *v
 	}
 #endif
 	rc = settings_save_one(name, value, size);
-#if defined(CONFIG_RZI_POWER) && defined(CONFIG_RZI_POWER_AUTO_SERVICE_LOCK)
+#if defined(CONFIG_RZI_POWER)
 	ignore_result(rzi_power_lock_put(RZI_POWER_LOCK_FLASH));
 #endif
 	k_mutex_unlock(&storage_lock);
@@ -157,7 +157,7 @@ int rzi_storage_delete(const char *namespace_name, const char *key)
 		return rc;
 	}
 	k_mutex_lock(&storage_lock, K_FOREVER);
-#if defined(CONFIG_RZI_POWER) && defined(CONFIG_RZI_POWER_AUTO_SERVICE_LOCK)
+#if defined(CONFIG_RZI_POWER)
 	rc = rzi_power_lock_get(RZI_POWER_LOCK_FLASH);
 	if (rc != 0) {
 		k_mutex_unlock(&storage_lock);
@@ -172,7 +172,7 @@ int rzi_storage_delete(const char *namespace_name, const char *key)
 	} else {
 		rc = settings_delete(name);
 	}
-#if defined(CONFIG_RZI_POWER) && defined(CONFIG_RZI_POWER_AUTO_SERVICE_LOCK)
+#if defined(CONFIG_RZI_POWER)
 	ignore_result(rzi_power_lock_put(RZI_POWER_LOCK_FLASH));
 #endif
 	k_mutex_unlock(&storage_lock);

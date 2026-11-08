@@ -10,7 +10,7 @@
 #include <zephyr/sys/atomic.h>
 #include <rzi/lorawan/lorawan.h>
 
-#if defined(CONFIG_RZI_POWER) && defined(CONFIG_RZI_POWER_AUTO_SERVICE_LOCK)
+#if defined(CONFIG_RZI_POWER)
 #include <rzi/power/power.h>
 #endif
 
@@ -50,12 +50,12 @@ static bool last_downlink_valid;
 static int16_t last_rssi_dbm;
 static int8_t last_snr_quarter_db;
 static const char protocol_version[] = "LoRaWAN 1.0.4";
-#if defined(CONFIG_RZI_POWER) && defined(CONFIG_RZI_POWER_AUTO_SERVICE_LOCK)
+#if defined(CONFIG_RZI_POWER)
 static bool power_class_c_held;
 #endif
 
 /* Caller holds config_lock across the class update and lock reference. */
-#if defined(CONFIG_RZI_POWER) && defined(CONFIG_RZI_POWER_AUTO_SERVICE_LOCK)
+#if defined(CONFIG_RZI_POWER)
 static void update_class_c_power_locked(bool class_c)
 {
 	if (class_c && !power_class_c_held && rzi_power_lock_get(RZI_POWER_LOCK_LORAWAN) == 0) {

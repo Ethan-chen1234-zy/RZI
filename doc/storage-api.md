@@ -13,7 +13,7 @@ See also: [error-codes.md](./error-codes.md),
 The Zephyr adapter is `src/storage/storage_settings.c`.
 `CONFIG_RZI_STORAGE` enables the service; the application still selects
 the Zephyr settings backend. Write and delete take `RZI_POWER_LOCK_FLASH`
-when automatic service PM locks are enabled.
+when `CONFIG_RZI_POWER` is enabled.
 
 ## Contract
 

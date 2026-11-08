@@ -32,7 +32,7 @@ ZTEST(rzi_storage_api, test_arguments_are_validated_before_backend_access)
 		      -RZI_ERR_NOT_FOUND);
 }
 
-#if defined(CONFIG_RZI_POWER) && defined(CONFIG_RZI_POWER_AUTO_SERVICE_LOCK)
+#if defined(CONFIG_RZI_POWER)
 ZTEST(rzi_storage_api, test_failed_lock_get_does_not_write_or_release_other_references)
 {
 	const uint8_t value = 1;

@@ -64,7 +64,7 @@ Each successful take acquires one native all-state PM-lock reference and
 requires a matching release. Releasing a missing
 reference returns `-RZI_ERR_INVALID`; a full owner count returns
 `-RZI_ERR_NO_RESOURCE`. Without `CONFIG_PM`, only reference counts are tracked.
-`CONFIG_RZI_POWER_AUTO_SERVICE_LOCK=y` enables automatic service ownership;
+`CONFIG_RZI_POWER=y` enables automatic service ownership;
 Class A join/send does not take a PM lock for the whole radio exchange.
 
 ## Thread sleep

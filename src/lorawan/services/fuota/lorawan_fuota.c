@@ -18,7 +18,7 @@
 #include <rzi/lorawan/fuota.h>
 #include <rzi/lorawan/lorawan.h>
 
-#if defined(CONFIG_RZI_POWER) && defined(CONFIG_RZI_POWER_AUTO_SERVICE_LOCK)
+#if defined(CONFIG_RZI_POWER)
 #include <rzi/power/power.h>
 #endif
 
@@ -47,7 +47,7 @@ static K_MUTEX_DEFINE(lock);
 static atomic_t active;
 static enum rzi_fuota_state state = RZI_FUOTA_STATE_IDLE;
 static bool image_ready;
-#if defined(CONFIG_RZI_POWER) && defined(CONFIG_RZI_POWER_AUTO_SERVICE_LOCK)
+#if defined(CONFIG_RZI_POWER)
 static bool power_flash_held;
 #endif
 static size_t image_size;
@@ -85,7 +85,7 @@ static void set_state_locked(enum rzi_fuota_state next)
 		return;
 	}
 	state = next;
-#if defined(CONFIG_RZI_POWER) && defined(CONFIG_RZI_POWER_AUTO_SERVICE_LOCK)
+#if defined(CONFIG_RZI_POWER)
 	{
 		bool want =
 			next == RZI_FUOTA_STATE_TRANSFERRING || next == RZI_FUOTA_STATE_APPLYING;
@@ -563,7 +563,7 @@ static void fuota_on_stopped(void)
 	atomic_clear(&active);
 	cancel_keepalive_sync();
 	k_mutex_lock(&lock, K_FOREVER);
-#if defined(CONFIG_RZI_POWER) && defined(CONFIG_RZI_POWER_AUTO_SERVICE_LOCK)
+#if defined(CONFIG_RZI_POWER)
 	if (power_flash_held) {
 		ignore_result(rzi_power_lock_put(RZI_POWER_LOCK_FLASH));
 		power_flash_held = false;

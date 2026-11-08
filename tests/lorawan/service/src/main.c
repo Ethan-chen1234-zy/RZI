@@ -14,7 +14,7 @@
 #include <rzi/version.h>
 
 #include "backend/lorawan_backend.h"
-#if defined(CONFIG_RZI_POWER) && defined(CONFIG_RZI_POWER_AUTO_SERVICE_LOCK)
+#if defined(CONFIG_RZI_POWER)
 #include <rzi/power/power.h>
 #include "lorawan_priv.h"
 #endif
@@ -782,7 +782,7 @@ ZTEST(rzi_lorawan_service, test_usp_channel_mask_reaches_the_join)
 	zassert_false(fake_last_join.channel_mask_set);
 }
 
-#if defined(CONFIG_RZI_POWER) && defined(CONFIG_RZI_POWER_AUTO_SERVICE_LOCK)
+#if defined(CONFIG_RZI_POWER)
 /* Force a scheduling point while a caller is acquiring its PM reference. */
 int __real_rzi_power_lock_get(enum rzi_power_lock lock);
 int __wrap_rzi_power_lock_get(enum rzi_power_lock lock)

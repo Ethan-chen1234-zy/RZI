@@ -5,19 +5,9 @@ config RZI_POWER
 	bool "RZI power helpers"
 	help
 	  Service PM locks, a runtime switch for native Zephyr PM locks,
-	  and thread waits. Enable CONFIG_PM in the
-	  application to use system PM; Zephyr's policy and the SoC device
-	  tree select the actual state. Ordinary CPU idle works without PM.
-
-if RZI_POWER
-
-config RZI_POWER_AUTO_SERVICE_LOCK
-	bool "Services acquire PM locks automatically"
-	default y
-	help
-	  Class C, storage writes, and FUOTA transfer/apply take and
-	  release PM locks. Class A join/send do not: the backend must be
-	  allowed to STOP between TX and RX1/RX2. Disable only when the
-	  application owns every PM lock itself.
-
-endif # RZI_POWER
+	  and thread waits. Class C, storage writes, and FUOTA transfer
+	  or apply take and release PM locks. Class A join/send do not,
+	  so the backend can STOP between TX and RX1/RX2. Enable CONFIG_PM
+	  in the application to use system PM; Zephyr's policy and the SoC
+	  device tree select the actual state. Ordinary CPU idle works
+	  without PM.
