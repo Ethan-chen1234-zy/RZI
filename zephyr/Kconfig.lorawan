@@ -121,13 +121,6 @@ config RZI_LORAWAN_FUOTA_KEEPALIVE_PORT
 	default 2
 	depends on RZI_LORAWAN_FUOTA_KEEPALIVE_INTERVAL_S > 0
 
-config RZI_LORAWAN_FUOTA_AUTO_APPLY
-	bool "Apply a completed image automatically"
-	depends on IMG_MANAGER
-	help
-	  Copy a reconstructed MCUboot image to the secondary slot and
-	  reboot after a successful transfer or an FMP reboot request.
-
 config RZI_LORAWAN_FUOTA_HW_VERSION
 	hex "Hardware version reported to FMP"
 	default 0x1

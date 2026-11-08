@@ -29,7 +29,7 @@ OTAA join
   -> FPort 202 / 200 / 201 handled transparently by the backend
   -> Class C multicast receives fragments
   -> record the image header; state becomes COMPLETE
-  -> optional rzi_fuota_apply() writes the MCUboot secondary slot and reboots
+  -> the application calls rzi_fuota_apply() to write slot1 and reboot
 ```
 
 OTAA `application_key` is the LoRaWAN 1.0.x **GenAppKey** and must match
@@ -68,8 +68,6 @@ Optional RZI knobs (see `zephyr/Kconfig.lorawan`):
   own periodic uplinks.
 - `CONFIG_RZI_LORAWAN_FUOTA_KEEPALIVE_PORT` — LoRaWAN port used by the
   keepalive uplink when the interval is non-zero.
-- `CONFIG_RZI_LORAWAN_FUOTA_AUTO_APPLY` — copy a completed image to slot1
-  and reboot. Requires `CONFIG_IMG_MANAGER`.
 - `CONFIG_RZI_LORAWAN_FUOTA_HW_VERSION` — 32-bit hardware version reported
   to FMP.
 

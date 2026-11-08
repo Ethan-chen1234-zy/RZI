@@ -56,11 +56,6 @@ static int last_error;
 static struct rzi_fuota_callbacks callbacks;
 static const struct rzi_lorawan_fuota_ops *ops;
 
-#ifdef CONFIG_RZI_LORAWAN_FUOTA_AUTO_APPLY
-static void apply_work_handler(struct k_work *work);
-static K_WORK_DEFINE(apply_work, apply_work_handler);
-#endif
-
 #if CONFIG_RZI_LORAWAN_FUOTA_KEEPALIVE_INTERVAL_S > 0
 static void keepalive_work_handler(struct k_work *work);
 static K_WORK_DELAYABLE_DEFINE(keepalive_work, keepalive_work_handler);
@@ -282,19 +277,6 @@ static int copy_image_to_slot(void)
 }
 #endif
 
-#ifdef CONFIG_RZI_LORAWAN_FUOTA_AUTO_APPLY
-static void apply_work_handler(struct k_work *work)
-{
-	int rc;
-
-	ARG_UNUSED(work);
-	rc = rzi_fuota_apply();
-	if (rc != 0) {
-		LOG_ERR("Automatic FUOTA apply failed: %d", rc);
-	}
-}
-#endif
-
 static void handle_joined(void)
 {
 	int rc = 0;
@@ -344,9 +326,6 @@ static void handle_fuota_event(const struct rzi_lorawan_backend_event *event)
 			log_image_head();
 			set_state_locked(RZI_FUOTA_STATE_COMPLETE);
 			notify_complete(0);
-#ifdef CONFIG_RZI_LORAWAN_FUOTA_AUTO_APPLY
-			k_work_submit(&apply_work);
-#endif
 		} else {
 			image_ready = false;
 			last_error = -RZI_ERR_IO;
@@ -357,11 +336,7 @@ static void handle_fuota_event(const struct rzi_lorawan_backend_event *event)
 		break;
 	case RZI_LORAWAN_BACKEND_FUOTA_REBOOT_REQUESTED:
 		if (image_ready) {
-#ifdef CONFIG_RZI_LORAWAN_FUOTA_AUTO_APPLY
-			k_work_submit(&apply_work);
-#else
 			LOG_INF("FMP reboot requested; call rzi_fuota_apply()");
-#endif
 		}
 		break;
 	}
@@ -544,11 +519,6 @@ static void fuota_on_initialized(void)
 
 static int fuota_on_stopping(void)
 {
-#ifdef CONFIG_RZI_LORAWAN_FUOTA_AUTO_APPLY
-	struct k_work_sync sync;
-
-	(void)k_work_cancel_sync(&apply_work, &sync);
-#endif
 	k_mutex_lock(&lock, K_FOREVER);
 	if (state == RZI_FUOTA_STATE_APPLYING) {
 		k_mutex_unlock(&lock);
