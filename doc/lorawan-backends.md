@@ -207,7 +207,10 @@ backend exists to prove a second stack can sit behind it. A backend:
   `_CLASS_C`, `_MULTICAST`, and `CONFIG_RZI_LORAWAN_FUOTA`. Network, session,
   MAC, and certification tables have no capability bit; a NULL table makes
   the public call return `-RZI_ERR_NOT_SUPPORTED`. `supports_abp` is separate
-  from the capability mask. Zephyr sets it. USP leaves it clear;
+  from the capability mask. USP and Zephyr both set it. USP ABP join calls
+  `smtc_modem_debug_connect_with_abp()` and does not send a Join-Request.
+  An OTAA join after ABP sets the modem activation mode back to OTAA,
+  because `smtc_modem_leave_network()` leaves that mode unchanged;
 - applies `join_config.channel_mask` at `join()` and restores every channel
   when `channel_mask_set` is false. The core owns and persists the mask. USP
   calls

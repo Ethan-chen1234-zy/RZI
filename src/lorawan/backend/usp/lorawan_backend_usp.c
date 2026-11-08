@@ -481,19 +481,34 @@ enum rzi_lorawan_class_b_state rzi_lorawan_usp_class_b_state(void)
 	return class_b_state;
 }
 
+/* lr1mac_activation_mode_t value for OTAA. leave_network() does not restore it. */
+#define LBM_ACTIVATION_OTAA 0
+
 static int usp_join(const struct rzi_lorawan_join_config *config)
 {
-	int rc;
+	smtc_modem_return_code_t result;
+	int rc = rzi_lorawan_usp_enter();
 
-	if (config->activation != RZI_LORAWAN_ACTIVATION_OTAA) {
-		return -RZI_ERR_NOT_SUPPORTED;
-	}
-	rc = rzi_lorawan_usp_enter();
 	if (rc != 0) {
 		return rc;
 	}
 	join_settings = *config;
 	credentials_valid = true;
+	if (config->activation == RZI_LORAWAN_ACTIVATION_ABP) {
+		rc = configure_channel_mask();
+		if (rc != 0) {
+			return rzi_lorawan_usp_finish(rc);
+		}
+		/*
+		 * ABP does not send a Join-Request. The modem marks the session
+		 * joined and queues JOINED. The debug wrapper reports an existing
+		 * session as FAIL, which maps to -RZI_ERR_IO.
+		 */
+		result = smtc_modem_debug_connect_with_abp(
+			STACK_ID, join_settings.abp.dev_addr, join_settings.abp.network_session_key,
+			join_settings.abp.application_session_key);
+		return rzi_lorawan_usp_finish(rzi_usp_result(result));
+	}
 	rc = configure_credentials();
 	if (rc == 0) {
 		rc = configure_channel_mask();
@@ -501,6 +516,7 @@ static int usp_join(const struct rzi_lorawan_join_config *config)
 	if (rc != 0) {
 		return rzi_lorawan_usp_finish(rc);
 	}
+	lorawan_api_set_activation_mode(LBM_ACTIVATION_OTAA, STACK_ID);
 	return rzi_lorawan_usp_finish(rzi_usp_result(smtc_modem_join_network(STACK_ID)));
 }
 
@@ -794,6 +810,7 @@ static int usp_deinit(void)
 
 const struct rzi_lorawan_backend_api rzi_lorawan_backend = {
 	.capabilities = USP_CAPABILITIES,
+	.supports_abp = true,
 	.base.init = usp_init,
 	.base.stop = usp_stop,
 	.base.deinit = usp_deinit,

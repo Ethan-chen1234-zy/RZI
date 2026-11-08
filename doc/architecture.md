@@ -289,7 +289,7 @@ FUOTA. Class B, multicast, and FUOTA bits are set only when the matching ops
 table is present. Baseline operations stay in the public API without a bit:
 OTAA, Class A, MAC parameters, the channel mask, session queries, LinkCheck,
 DeviceTime, and certification. ABP is a backend flag, `supports_abp`, because
-LoRa Basics Modem does not compile it in or out. Zephyr sets the flag.
+LoRa Basics Modem does not compile it in or out. USP and Zephyr set the flag.
 A backend that leaves it clear returns `-RZI_ERR_NOT_SUPPORTED`. Typical
 applications call the API and handle that error. The AT package forwards
 class, ADR, data rate, channels,

@@ -135,9 +135,9 @@ AT+APPKEY=00112233445566778899AABBCCDDEEFF
 
 ### Activation and class
 
-- `AT+NJM` is compatible with limits. OTAA (`1`) is supported. ABP (`0`) is
-  accepted when the backend sets `supports_abp`; otherwise the
-  write returns `AT_ERROR`.
+- `AT+NJM` is compatible with limits. OTAA (`1`) and ABP (`0`) are accepted
+  by the USP and Zephyr backends. A backend that does not implement ABP
+  returns `AT_ERROR`.
 - `AT+NJS=?` is compatible and returns `AT+NJS=0` or `AT+NJS=1`.
 - `AT+CLASS` is compatible with limits. `A` is accepted. `B` and `C` are
   accepted when the selected backend advertises `RZI_LORAWAN_CAP_CLASS_B` or

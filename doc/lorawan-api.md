@@ -242,7 +242,10 @@ the LoRaWAN 1.0.4 join duty cycle (1 % of airtime in the first hour, then
 The Zephyr backend waits `interval` seconds (default 8) between attempts and
 cannot abort a `lorawan_join()` already in progress; it drops that result.
 
-The public API can express OTAA and ABP. A backend that does not
+The public API can express OTAA and ABP. USP and Zephyr both accept either
+mode. USP ABP join writes DevAddr, NwkSKey, and AppSKey and becomes joined
+without a Join-Request. The next OTAA join restores OTAA inside the USP
+backend, because leaving the network does not. A backend that does not
 implement ABP returns `-RZI_ERR_NOT_SUPPORTED` from
 `rzi_lorawan_set_activation()` and from `rzi_lorawan_join()`.
 `rzi_lorawan_get_capabilities()` reports the optional packages compiled into

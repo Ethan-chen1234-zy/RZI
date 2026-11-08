@@ -918,7 +918,8 @@ __must_check int rzi_lorawan_get_activation(enum rzi_lorawan_activation *mode);
  * @retval -RZI_ERR_ISR Called from an ISR.
  * @retval -RZI_ERR_IO The mode could not be persisted.
  *
- * @note Thread context only.
+ * @note Thread context only. Every current backend accepts OTAA and ABP.
+ *       A backend can still reject ABP with -RZI_ERR_NOT_SUPPORTED.
  * @since 0.4
  */
 __must_check int rzi_lorawan_set_activation(enum rzi_lorawan_activation mode);

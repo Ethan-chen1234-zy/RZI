@@ -206,7 +206,7 @@ Class C, multicast, and FUOTA. A NULL operation still returns
 
 | Group | USP / LBM | Zephyr `lorawan_*` |
 |---|---|---|
-| Join / send / class | OTAA, Class A; Class B/C per LBM Kconfig | OTAA, ABP, Class A/C |
+| Join / send / class | OTAA, ABP, Class A; Class B/C per LBM Kconfig | OTAA, ABP, Class A/C |
 | ADR, DR, public network, LBT | Yes | ADR, DR |
 | Link control (ADR profile, NbTrans, ADR ACK, CSMA, duty-cycle status, …) | Yes (CSMA with `CONFIG_LORA_BASICS_MODEM_CSMA`) | `-RZI_ERR_NOT_SUPPORTED` |
 | TX power, RX / join windows | `-RZI_ERR_NOT_SUPPORTED` (not in `smtc_modem_*`) | `-RZI_ERR_NOT_SUPPORTED` |
