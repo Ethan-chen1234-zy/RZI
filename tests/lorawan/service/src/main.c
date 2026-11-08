@@ -14,6 +14,7 @@
 #include <rzi/version.h>
 
 #include "backend/lorawan_backend.h"
+#include "lorawan_settings.h"
 #if defined(CONFIG_RZI_POWER)
 #include <rzi/power/power.h>
 #include "lorawan_priv.h"
@@ -158,8 +159,48 @@ ZTEST(rzi_lorawan_service, test_sdk_metadata_and_feature_discovery)
 {
 	zassert_equal(strcmp(rzi_version_get_string(), RZI_VERSION_STRING), 0);
 	zassert_not_null(rzi_lorawan_backend.multicast);
-	zassert_true((rzi_lorawan_get_capabilities() & RZI_LORAWAN_CAP_NETWORK) != 0U);
+	zassert_equal(rzi_lorawan_get_capabilities() &
+			      (RZI_LORAWAN_CAP_CLASS_B | RZI_LORAWAN_CAP_CLASS_C |
+			       RZI_LORAWAN_CAP_MULTICAST),
+		      RZI_LORAWAN_CAP_CLASS_B | RZI_LORAWAN_CAP_CLASS_C |
+			      RZI_LORAWAN_CAP_MULTICAST);
 }
+
+#if !IS_ENABLED(CONFIG_RZI_LORAWAN_TEST_FAKE_SUPPORTS_ABP)
+/* Ztest runs cases in name order. This name stays ahead of the others so it
+ * writes NJM before any case loads credentials. set_activation() cannot store
+ * ABP here, so a persisted ABP mode is what makes join() return
+ * -RZI_ERR_NOT_SUPPORTED.
+ */
+ZTEST(rzi_lorawan_service, test_abp_rejected_when_backend_omits_it)
+{
+	struct callback_stats stats = {0};
+	struct rzi_lorawan_callbacks local = callbacks;
+	enum rzi_lorawan_activation mode;
+	enum rzi_lorawan_state state;
+	const uint8_t abp_wire = 0U;
+
+	local.user_data = &stats;
+	zassert_ok(rzi_lorawan_setting_write("njm", &abp_wire, sizeof(abp_wire)));
+	zassert_ok(rzi_lorawan_set_join_backoff_bypass(true));
+	zassert_ok(rzi_lorawan_register_callbacks(&local));
+	zassert_ok(rzi_lorawan_init(RZI_LORAWAN_REGION_US_915));
+	wait_for_callbacks(1);
+	zassert_equal(atomic_get(&stats.ready), 1);
+	zassert_ok(rzi_lorawan_get_activation(&mode));
+	zassert_equal(mode, RZI_LORAWAN_ACTIVATION_ABP);
+	zassert_equal(rzi_lorawan_set_activation(RZI_LORAWAN_ACTIVATION_ABP),
+		      -RZI_ERR_NOT_SUPPORTED);
+	zassert_equal(rzi_lorawan_join(1, 0, RZI_LORAWAN_JOIN_INTERVAL_DEFAULT, 0),
+		      -RZI_ERR_NOT_SUPPORTED);
+	zassert_ok(rzi_lorawan_get_state(&state));
+	zassert_equal(state, RZI_LORAWAN_STATE_READY);
+	zassert_ok(rzi_lorawan_set_activation(RZI_LORAWAN_ACTIVATION_OTAA));
+	zassert_ok(rzi_lorawan_deinit());
+	zassert_ok(rzi_lorawan_get_state(&state));
+	zassert_equal(state, RZI_LORAWAN_STATE_STOPPED);
+}
+#endif
 
 ZTEST(rzi_lorawan_service, test_lifecycle_and_multiple_subscribers)
 {
@@ -170,6 +211,8 @@ ZTEST(rzi_lorawan_service, test_lifecycle_and_multiple_subscribers)
 	const uint8_t payload[] = {0x12, 0x34};
 	enum rzi_lorawan_state state;
 	bool joined = false;
+	atomic_val_t states_after_otaa = 4;
+	atomic_val_t joined_after_otaa = 1;
 
 	zassert_ok(rzi_lorawan_get_state(&state));
 	zassert_equal(state, RZI_LORAWAN_STATE_STOPPED);
@@ -194,14 +237,52 @@ ZTEST(rzi_lorawan_service, test_lifecycle_and_multiple_subscribers)
 	zassert_equal(rzi_lorawan_send(10, payload, sizeof(payload), RZI_LORAWAN_MSG_CONFIRMED),
 		      -RZI_ERR_NOT_JOINED);
 
-	zassert_equal(rzi_lorawan_set_activation(RZI_LORAWAN_ACTIVATION_ABP),
-		      -RZI_ERR_NOT_SUPPORTED);
+#if IS_ENABLED(CONFIG_RZI_LORAWAN_TEST_FAKE_SUPPORTS_ABP)
+	{
+		uint32_t dev_addr = 0xffffffffU;
+		uint8_t stored[16];
+		uint8_t key[16];
+
+		memset(stored, 0x5a, sizeof(stored));
+		zassert_ok(rzi_lorawan_set_activation(RZI_LORAWAN_ACTIVATION_ABP));
+		zassert_ok(rzi_lorawan_set_dev_addr(0xaabbccddU));
+		zassert_ok(rzi_lorawan_set_nwk_skey(stored, sizeof(stored)));
+		zassert_ok(rzi_lorawan_set_app_skey(stored, sizeof(stored)));
+		zassert_ok(rzi_lorawan_get_dev_addr(&dev_addr));
+		zassert_equal(dev_addr, 0xaabbccddU);
+		zassert_ok(rzi_lorawan_get_nwk_skey(key, sizeof(key)));
+		zassert_mem_equal(key, stored, sizeof(stored));
+		zassert_ok(rzi_lorawan_get_app_skey(key, sizeof(key)));
+		zassert_mem_equal(key, stored, sizeof(stored));
+		zassert_ok(rzi_lorawan_join(1, 0, RZI_LORAWAN_JOIN_INTERVAL_DEFAULT, 0));
+		wait_for_callbacks(2);
+		wait_for_states(&second, 4);
+		zassert_equal(atomic_get(&first.joined), 1);
+		zassert_equal(atomic_get(&second.joined), 1);
+		zassert_equal(fake_last_join.activation, RZI_LORAWAN_ACTIVATION_ABP);
+		zassert_equal(fake_last_join.abp.dev_addr, 0xaabbccddU);
+		zassert_mem_equal(fake_last_join.abp.network_session_key, stored, sizeof(stored));
+		zassert_mem_equal(fake_last_join.abp.application_session_key, stored,
+				  sizeof(stored));
+		zassert_ok(rzi_lorawan_get_state(&state));
+		zassert_equal(state, RZI_LORAWAN_STATE_JOINED);
+		zassert_ok(rzi_lorawan_leave());
+		wait_for_states(&second, 5);
+		zassert_ok(rzi_lorawan_get_state(&state));
+		zassert_equal(state, RZI_LORAWAN_STATE_READY);
+		zassert_ok(rzi_lorawan_set_activation(RZI_LORAWAN_ACTIVATION_OTAA));
+	}
+	states_after_otaa = 7;
+	joined_after_otaa = 2;
+#else
 	{
 		uint32_t dev_addr = 0xffffffffU;
 		uint8_t stored[16];
 		uint8_t key[16];
 		uint8_t zeros[16] = {0};
 
+		zassert_equal(rzi_lorawan_set_activation(RZI_LORAWAN_ACTIVATION_ABP),
+			      -RZI_ERR_NOT_SUPPORTED);
 		memset(stored, 0x5a, sizeof(stored));
 		zassert_ok(rzi_lorawan_set_dev_addr(0xaabbccddU));
 		zassert_ok(rzi_lorawan_set_nwk_skey(stored, sizeof(stored)));
@@ -215,11 +296,12 @@ ZTEST(rzi_lorawan_service, test_lifecycle_and_multiple_subscribers)
 		zassert_ok(rzi_lorawan_get_app_skey(key, sizeof(key)));
 		zassert_mem_equal(key, zeros, sizeof(zeros));
 	}
+#endif
 	zassert_ok(rzi_lorawan_join(1, 0, RZI_LORAWAN_JOIN_INTERVAL_DEFAULT, 0));
 	wait_for_callbacks(2);
-	wait_for_states(&second, 4);
-	zassert_equal(atomic_get(&first.joined), 1);
-	zassert_equal(atomic_get(&second.joined), 1);
+	wait_for_states(&second, states_after_otaa);
+	zassert_equal(atomic_get(&first.joined), joined_after_otaa);
+	zassert_equal(atomic_get(&second.joined), joined_after_otaa);
 	{
 		uint32_t dev_addr = 0;
 		uint8_t key[16];

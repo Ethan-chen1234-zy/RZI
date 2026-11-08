@@ -66,8 +66,9 @@ the public header. The rest is absorbed by the backend.
 ## Usage
 
 Build commands, overlay replacement, and `.config` checks are in
-[lorawan-backends.md](./lorawan-backends.md). The adapter advertises ABP
-and Class C even without FUOTA; `leave()` still returns `-RZI_ERR_NOT_SUPPORTED`.
+[lorawan-backends.md](./lorawan-backends.md). The adapter accepts ABP and
+advertises Class C. Class B is not advertised. `leave()` still returns
+`-RZI_ERR_NOT_SUPPORTED`.
 
 ```text
 CONFIG_RZI_LORAWAN=y

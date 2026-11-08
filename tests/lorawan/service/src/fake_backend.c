@@ -19,10 +19,7 @@
 #include "backend/lorawan_backend.h"
 
 #define FAKE_CAPABILITIES                                                                          \
-	(RZI_LORAWAN_CAP_OTAA | RZI_LORAWAN_CAP_CLASS_A | RZI_LORAWAN_CAP_CLASS_B |                \
-	 RZI_LORAWAN_CAP_CLASS_C | RZI_LORAWAN_CAP_NETWORK | RZI_LORAWAN_CAP_CHANNEL |             \
-	 RZI_LORAWAN_CAP_SESSION | RZI_LORAWAN_CAP_MAC | RZI_LORAWAN_CAP_MULTICAST |               \
-	 RZI_LORAWAN_CAP_CERTIFICATION)
+	(RZI_LORAWAN_CAP_CLASS_B | RZI_LORAWAN_CAP_CLASS_C | RZI_LORAWAN_CAP_MULTICAST)
 
 #define FAKE_ATTEMPT_DELAY K_MSEC(5)
 #define US915_UPLINK_DRS   0x007fU
@@ -96,7 +93,8 @@ static void join_attempt(struct k_work *work)
 		return;
 	}
 	fake_join_attempts++;
-	failed = fake_join_failures != 0;
+	/* ABP does not send a Join-Request, so it does not use the OTAA failure counter. */
+	failed = fake_last_join.activation != RZI_LORAWAN_ACTIVATION_ABP && fake_join_failures != 0;
 	if (failed) {
 		if (fake_join_failures > 0) {
 			fake_join_failures--;
@@ -130,7 +128,12 @@ static int fake_join(const struct rzi_lorawan_join_config *config)
 	if (fake_join_error != 0) {
 		return fake_join_error;
 	}
-	if (config->activation != RZI_LORAWAN_ACTIVATION_OTAA) {
+	if (config->activation == RZI_LORAWAN_ACTIVATION_ABP &&
+	    !IS_ENABLED(CONFIG_RZI_LORAWAN_TEST_FAKE_SUPPORTS_ABP)) {
+		return -RZI_ERR_NOT_SUPPORTED;
+	}
+	if (config->activation != RZI_LORAWAN_ACTIVATION_OTAA &&
+	    config->activation != RZI_LORAWAN_ACTIVATION_ABP) {
 		return -RZI_ERR_NOT_SUPPORTED;
 	}
 	k_mutex_lock(&lock, K_FOREVER);
@@ -723,6 +726,7 @@ static int fake_get_protocol_version(const char **version)
 
 const struct rzi_lorawan_backend_api rzi_lorawan_backend = {
 	.capabilities = FAKE_CAPABILITIES,
+	.supports_abp = IS_ENABLED(CONFIG_RZI_LORAWAN_TEST_FAKE_SUPPORTS_ABP),
 	.base.init = fake_init,
 	.base.stop = fake_stop,
 	.base.deinit = fake_deinit,

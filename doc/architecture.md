@@ -248,12 +248,12 @@ initialize lazily. `diagnostics/diagnostics.h` is still planned.
 The current `include/rzi/lorawan/lorawan.h` supports:
 
 - Zephyr-shaped region selection, start, activation config, and send operations;
-- OTAA join, leave, and a public ABP model for capable future backends;
+- OTAA join, leave, and ABP for backends that implement it;
 - confirmed and unconfirmed uplink requests;
 - joined-state query;
 - one typed public event callback for join, send, downlink, state, MAC-command,
   error, and Class B results;
-- a backend capability bitset and device-class operation;
+- capability bits for Class B, Class C, multicast, and FUOTA;
 - multiple callback subscribers, one modem instance, and one outstanding uplink;
 - a fixed-size private event queue with overflow reporting.
 
@@ -281,22 +281,19 @@ management remain in the LoRaWAN service.
 Unsupported backend operations return `-RZI_ERR_NOT_SUPPORTED`. Raw LoRa P2P and FSK use
 `CONFIG_RZI_LORA` and `include/rzi/lora/lora.h`.
 
-### Target capability model
+### Capability model
 
-Backends will not always provide the same features. The common service exposes
-a capability bitset covering join mode, device class, and the optional
-backend tables (network, session, MAC requests, multicast, certification,
-FUOTA), and whether the backend applies the core's channel mask. Further candidate capabilities include:
-
-```text
-ADR_CONTROL, CSMA, RELAY
-```
-
-An unsupported operation returns `-RZI_ERR_NOT_SUPPORTED`. Typical
-applications call the API and handle that error. Portable code and the AT
-package may also read `rzi_lorawan_get_capabilities()`. The AT package
-forwards class, ADR, data rate, channels, link-check, Class B, multicast,
-and certification to the same C API.
+Optional packages follow the LoRa Basics Modem compile-time switches.
+`rzi_lorawan_get_capabilities()` reports Class B, Class C, multicast, and
+FUOTA. Class B, multicast, and FUOTA bits are set only when the matching ops
+table is present. Baseline operations stay in the public API without a bit:
+OTAA, Class A, MAC parameters, the channel mask, session queries, LinkCheck,
+DeviceTime, and certification. ABP is a backend flag, `supports_abp`, because
+LoRa Basics Modem does not compile it in or out. Zephyr sets the flag.
+A backend that leaves it clear returns `-RZI_ERR_NOT_SUPPORTED`. Typical
+applications call the API and handle that error. The AT package forwards
+class, ADR, data rate, channels,
+link-check, Class B, multicast, and certification to the same C API.
 
 ### Concurrency and events
 

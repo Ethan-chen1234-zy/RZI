@@ -249,13 +249,11 @@ static uint8_t njm_wire(enum rzi_lorawan_activation mode)
 
 static bool activation_supported(enum rzi_lorawan_activation mode)
 {
-	uint32_t capabilities = rzi_lorawan_backend.capabilities;
-
 	if (mode == RZI_LORAWAN_ACTIVATION_OTAA) {
-		return (capabilities & RZI_LORAWAN_CAP_OTAA) != 0U;
+		return true;
 	}
 	if (mode == RZI_LORAWAN_ACTIVATION_ABP) {
-		return (capabilities & RZI_LORAWAN_CAP_ABP) != 0U;
+		return rzi_lorawan_backend.supports_abp;
 	}
 	return false;
 }
@@ -645,8 +643,7 @@ int rzi_lorawan_credentials_build_config(struct rzi_lorawan_join_config *config)
 		memset(config, 0, sizeof(*config));
 		config->activation = credentials.njm;
 		config->retry_interval_s = credentials.join_interval;
-		if (credentials.channel_mask_set && rzi_lorawan_region_has_fixed_plan(region) &&
-		    (rzi_lorawan_backend.capabilities & RZI_LORAWAN_CAP_CHANNEL) != 0U) {
+		if (credentials.channel_mask_set && rzi_lorawan_region_has_fixed_plan(region)) {
 			config->channel_mask_set = true;
 			memcpy(config->channel_mask, credentials.channel_mask,
 			       sizeof(config->channel_mask));

@@ -40,15 +40,9 @@ BUILD_ASSERT(IS_ENABLED(CONFIG_LORA_MODULE_BACKEND_LORAMAC_NODE),
 LOG_MODULE_REGISTER(rzi_lw_zephyr, CONFIG_LORAWAN_LOG_LEVEL);
 
 #ifdef CONFIG_RZI_LORAWAN_FUOTA
-#define ZEPHYR_CAPABILITIES                                                                        \
-	(RZI_LORAWAN_CAP_OTAA | RZI_LORAWAN_CAP_ABP | RZI_LORAWAN_CAP_CLASS_A |                    \
-	 RZI_LORAWAN_CAP_CLASS_C | RZI_LORAWAN_CAP_NETWORK | RZI_LORAWAN_CAP_CHANNEL |             \
-	 RZI_LORAWAN_CAP_SESSION | RZI_LORAWAN_CAP_MAC | RZI_LORAWAN_CAP_FUOTA)
+#define ZEPHYR_CAPABILITIES (RZI_LORAWAN_CAP_CLASS_C | RZI_LORAWAN_CAP_FUOTA)
 #else
-#define ZEPHYR_CAPABILITIES                                                                        \
-	(RZI_LORAWAN_CAP_OTAA | RZI_LORAWAN_CAP_ABP | RZI_LORAWAN_CAP_CLASS_A |                    \
-	 RZI_LORAWAN_CAP_CLASS_C | RZI_LORAWAN_CAP_NETWORK | RZI_LORAWAN_CAP_CHANNEL |             \
-	 RZI_LORAWAN_CAP_SESSION | RZI_LORAWAN_CAP_MAC)
+#define ZEPHYR_CAPABILITIES (RZI_LORAWAN_CAP_CLASS_C)
 #endif
 
 #define WORKER_STACK_SIZE CONFIG_RZI_LORAWAN_BACKEND_ZEPHYR_WORKER_STACK_SIZE
@@ -690,6 +684,7 @@ static int zephyr_is_joined(bool *is_joined)
 
 const struct rzi_lorawan_backend_api rzi_lorawan_backend = {
 	.capabilities = ZEPHYR_CAPABILITIES,
+	.supports_abp = true,
 	.base.init = zephyr_init,
 	.base.join = zephyr_join,
 	.base.leave = zephyr_leave,

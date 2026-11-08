@@ -481,19 +481,10 @@ static __maybe_unused bool capability_matches(uint32_t capability, const void *o
 
 static void check_backend_contract(void)
 {
-	__ASSERT(capability_matches(RZI_LORAWAN_CAP_NETWORK, rzi_lorawan_backend.network),
-		 "network ops do not match RZI_LORAWAN_CAP_NETWORK");
 	__ASSERT(capability_matches(RZI_LORAWAN_CAP_CLASS_B, rzi_lorawan_backend.class_b),
 		 "class_b ops do not match RZI_LORAWAN_CAP_CLASS_B");
-	__ASSERT(capability_matches(RZI_LORAWAN_CAP_SESSION, rzi_lorawan_backend.session),
-		 "session ops do not match RZI_LORAWAN_CAP_SESSION");
-	__ASSERT(capability_matches(RZI_LORAWAN_CAP_MAC, rzi_lorawan_backend.mac),
-		 "mac ops do not match RZI_LORAWAN_CAP_MAC");
 	__ASSERT(capability_matches(RZI_LORAWAN_CAP_MULTICAST, rzi_lorawan_backend.multicast),
 		 "multicast ops do not match RZI_LORAWAN_CAP_MULTICAST");
-	__ASSERT(capability_matches(RZI_LORAWAN_CAP_CERTIFICATION,
-				    rzi_lorawan_backend.certification),
-		 "certification ops do not match RZI_LORAWAN_CAP_CERTIFICATION");
 #ifdef CONFIG_RZI_LORAWAN_FUOTA
 	__ASSERT(capability_matches(RZI_LORAWAN_CAP_FUOTA, rzi_lorawan_backend.fuota),
 		 "fuota ops do not match RZI_LORAWAN_CAP_FUOTA");
@@ -708,12 +699,7 @@ static int begin_join(void)
 	if (rc != 0) {
 		return rc;
 	}
-	if (mode == RZI_LORAWAN_ACTIVATION_OTAA &&
-	    (rzi_lorawan_backend.capabilities & RZI_LORAWAN_CAP_OTAA) == 0U) {
-		return -RZI_ERR_NOT_SUPPORTED;
-	}
-	if (mode == RZI_LORAWAN_ACTIVATION_ABP &&
-	    (rzi_lorawan_backend.capabilities & RZI_LORAWAN_CAP_ABP) == 0U) {
+	if (mode == RZI_LORAWAN_ACTIVATION_ABP && !rzi_lorawan_backend.supports_abp) {
 		return -RZI_ERR_NOT_SUPPORTED;
 	}
 	rc = rzi_lorawan_get_join_attempts(&attempts);
@@ -882,12 +868,6 @@ int rzi_lorawan_set_class(enum rzi_lorawan_class device_class)
 {
 	int rc;
 
-	static const uint32_t class_caps[] = {
-		[RZI_LORAWAN_CLASS_A] = RZI_LORAWAN_CAP_CLASS_A,
-		[RZI_LORAWAN_CLASS_B] = RZI_LORAWAN_CAP_CLASS_B,
-		[RZI_LORAWAN_CLASS_C] = RZI_LORAWAN_CAP_CLASS_C,
-	};
-
 	if ((unsigned int)device_class > RZI_LORAWAN_CLASS_C) {
 		return -RZI_ERR_INVALID;
 	}
@@ -895,7 +875,10 @@ int rzi_lorawan_set_class(enum rzi_lorawan_class device_class)
 	if (rc != 0) {
 		return rc;
 	}
-	if ((rzi_lorawan_backend.capabilities & class_caps[device_class]) == 0U) {
+	if ((device_class == RZI_LORAWAN_CLASS_B &&
+	     (rzi_lorawan_backend.capabilities & RZI_LORAWAN_CAP_CLASS_B) == 0U) ||
+	    (device_class == RZI_LORAWAN_CLASS_C &&
+	     (rzi_lorawan_backend.capabilities & RZI_LORAWAN_CAP_CLASS_C) == 0U)) {
 		return -RZI_ERR_NOT_SUPPORTED;
 	}
 	rc = rzi_lorawan_backend.base.set_class(device_class);

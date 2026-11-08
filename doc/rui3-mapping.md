@@ -200,8 +200,9 @@ FUOTA coordination stays Kconfig-gated (`CONFIG_RZI_LORAWAN_FUOTA`). See
 
 ## Backend coverage
 
-Public facades always compile except FUOTA. A capability bit means the
-backend implements that group. A NULL operation still returns `-RZI_ERR_NOT_SUPPORTED`.
+Public facades always compile except FUOTA. Capability bits cover Class B,
+Class C, multicast, and FUOTA. A NULL operation still returns
+`-RZI_ERR_NOT_SUPPORTED`.
 
 | Group | USP / LBM | Zephyr `lorawan_*` |
 |---|---|---|

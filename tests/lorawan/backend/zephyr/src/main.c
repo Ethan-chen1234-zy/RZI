@@ -6,6 +6,7 @@
 
 #include <zephyr/kernel.h>
 #include <zephyr/lorawan/emul.h>
+#include <zephyr/lorawan/lorawan.h>
 #include <zephyr/sys/atomic.h>
 #include <zephyr/ztest.h>
 
@@ -27,6 +28,35 @@ struct callback_stats {
 static uint8_t last_uplink_port;
 static uint8_t last_uplink_len;
 static uint8_t last_uplink[RZI_LORAWAN_MAX_PAYLOAD];
+
+struct wrapped_join {
+	bool valid;
+	enum lorawan_act_type mode;
+	uint32_t dev_addr;
+	uint8_t nwk_skey[16];
+	uint8_t app_skey[16];
+};
+
+static struct wrapped_join captured_join;
+
+int __real_lorawan_join(const struct lorawan_join_config *join_cfg);
+
+int __wrap_lorawan_join(const struct lorawan_join_config *join_cfg)
+{
+	captured_join.valid = join_cfg != NULL;
+	if (join_cfg != NULL) {
+		captured_join.mode = join_cfg->mode;
+		if (join_cfg->mode == LORAWAN_ACT_ABP && join_cfg->abp.nwk_skey != NULL &&
+		    join_cfg->abp.app_skey != NULL) {
+			captured_join.dev_addr = join_cfg->abp.dev_addr;
+			memcpy(captured_join.nwk_skey, join_cfg->abp.nwk_skey,
+			       sizeof(captured_join.nwk_skey));
+			memcpy(captured_join.app_skey, join_cfg->abp.app_skey,
+			       sizeof(captured_join.app_skey));
+		}
+	}
+	return __real_lorawan_join(join_cfg);
+}
 
 static void on_emul_uplink(uint8_t port, uint8_t len, const uint8_t *data)
 {
@@ -101,11 +131,9 @@ ZTEST(rzi_lorawan_backend_zephyr, test_async_contract_over_blocking_api)
 	zassert_ok(rzi_lorawan_set_join_backoff_bypass(true));
 
 	caps = rzi_lorawan_get_capabilities();
-	zassert_true((caps & RZI_LORAWAN_CAP_OTAA) != 0U);
-	zassert_true((caps & RZI_LORAWAN_CAP_ABP) != 0U);
-	zassert_true((caps & RZI_LORAWAN_CAP_CLASS_A) != 0U);
 	zassert_true((caps & RZI_LORAWAN_CAP_CLASS_C) != 0U);
 	zassert_true((caps & RZI_LORAWAN_CAP_CLASS_B) == 0U);
+	zassert_true((caps & RZI_LORAWAN_CAP_MULTICAST) == 0U);
 
 	{
 		uint32_t remaining_s = 123;
@@ -149,6 +177,7 @@ ZTEST(rzi_lorawan_backend_zephyr, test_async_contract_over_blocking_api)
 		zassert_mem_equal(key, zeros, sizeof(zeros));
 		zassert_ok(rzi_lorawan_get_app_skey(key, sizeof(key)));
 		zassert_mem_equal(key, zeros, sizeof(zeros));
+		zassert_ok(rzi_lorawan_set_activation(RZI_LORAWAN_ACTIVATION_ABP));
 	}
 
 	zassert_ok(rzi_lorawan_set_dev_eui(dev_eui, sizeof(dev_eui)));
@@ -161,12 +190,19 @@ ZTEST(rzi_lorawan_backend_zephyr, test_async_contract_over_blocking_api)
 	zassert_equal(atomic_get(&stats.join_status), 0);
 	zassert_ok(rzi_lorawan_is_joined(&joined));
 	zassert_true(joined);
+	zassert_true(captured_join.valid);
+	zassert_equal(captured_join.mode, LORAWAN_ACT_ABP);
+	zassert_equal(captured_join.dev_addr, 0x01020304U);
 	{
+		uint8_t expected[16];
 		uint32_t dev_addr = 1U;
 
-		/* The emulator join does not run LoRaMac, so the address stays 0. */
+		memset(expected, 0xab, sizeof(expected));
+		zassert_mem_equal(captured_join.nwk_skey, expected, sizeof(expected));
+		zassert_mem_equal(captured_join.app_skey, expected, sizeof(expected));
+		/* The public getter returns the stored ABP address. */
 		zassert_ok(rzi_lorawan_get_dev_addr(&dev_addr));
-		zassert_equal(dev_addr, 0U);
+		zassert_equal(dev_addr, 0x01020304U);
 	}
 
 	zassert_ok(rzi_lorawan_send(10, payload, sizeof(payload), RZI_LORAWAN_MSG_UNCONFIRMED));

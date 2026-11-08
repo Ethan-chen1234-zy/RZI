@@ -14,7 +14,6 @@
 
 #include <rzi/lorawan/lorawan.h>
 
-#include "../backend/lorawan_backend.h"
 #include "../lorawan_priv.h"
 
 #define NARROW_STEP_HZ 200000U
@@ -38,9 +37,6 @@ static int channel_plan(struct channel_plan *plan)
 
 	if (rc != 0) {
 		return rc;
-	}
-	if ((rzi_lorawan_backend.capabilities & RZI_LORAWAN_CAP_CHANNEL) == 0U) {
-		return -RZI_ERR_NOT_SUPPORTED;
 	}
 	if (region == RZI_LORAWAN_REGION_US_915) {
 		*plan = (struct channel_plan){902300000U, 903000000U};

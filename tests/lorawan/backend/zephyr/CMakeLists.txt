@@ -7,3 +7,4 @@ project(rzi_lorawan_backend_zephyr)
 
 target_include_directories(app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../../../src/lorawan)
 target_sources(app PRIVATE src/main.c)
+zephyr_link_libraries(-Wl,--wrap=lorawan_join)

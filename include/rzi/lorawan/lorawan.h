@@ -183,38 +183,24 @@ struct rzi_lorawan_network_time {
 };
 
 /**
- * @brief Backend capabilities returned by @ref rzi_lorawan_get_capabilities.
+ * @brief Optional packages compiled into the selected backend.
  *
- * Activation and class bits describe supported join and device-class modes;
- * CLASS_B also requires the class_b ops table. CHANNEL means join applies
- * the configured channel mask and has no separate ops table. The other bits
- * match optional ops tables and are set only when the table is non-NULL.
+ * These bits follow LoRa Basics Modem's compile-time feature switches.
+ * Class B, multicast, and FUOTA are set only when the matching ops table
+ * is present. Baseline operations (OTAA, Class A, MAC parameters, the
+ * channel mask, session queries, LinkCheck, DeviceTime, and certification)
+ * are not advertised here. A backend that does not implement one returns
+ * -RZI_ERR_NOT_SUPPORTED from that call.
  */
 enum rzi_lorawan_capability {
-	/** Backend accepts OTAA join. */
-	RZI_LORAWAN_CAP_OTAA = (1U << 0),
-	/** Backend accepts ABP join. */
-	RZI_LORAWAN_CAP_ABP = (1U << 1),
-	/** Backend accepts Class A. */
-	RZI_LORAWAN_CAP_CLASS_A = (1U << 2),
-	/** Backend accepts Class B. */
-	RZI_LORAWAN_CAP_CLASS_B = (1U << 3),
-	/** Backend accepts Class C. */
-	RZI_LORAWAN_CAP_CLASS_C = (1U << 4),
-	/** Backend provides the MAC-parameter table. */
-	RZI_LORAWAN_CAP_NETWORK = (1U << 5),
-	/** Backend applies the US915 / AU915 channel mask from the join configuration. */
-	RZI_LORAWAN_CAP_CHANNEL = (1U << 6),
-	/** Backend provides session-identity queries (NetID / DevNonce). */
-	RZI_LORAWAN_CAP_SESSION = (1U << 7),
-	/** Backend provides LinkCheckReq and DeviceTimeReq. */
-	RZI_LORAWAN_CAP_MAC = (1U << 8),
-	/** Backend provides multicast-session management. */
-	RZI_LORAWAN_CAP_MULTICAST = (1U << 9),
-	/** Backend provides certification mode. */
-	RZI_LORAWAN_CAP_CERTIFICATION = (1U << 10),
-	/** Backend provides the RZI FUOTA coordination contract. */
-	RZI_LORAWAN_CAP_FUOTA = (1U << 11),
+	/** Backend accepts Class B. Follows CONFIG_LORA_BASICS_MODEM_CLASS_B. */
+	RZI_LORAWAN_CAP_CLASS_B = (1U << 0),
+	/** Backend accepts Class C. Follows CONFIG_LORA_BASICS_MODEM_CLASS_C. */
+	RZI_LORAWAN_CAP_CLASS_C = (1U << 1),
+	/** Backend provides multicast sessions. Follows CONFIG_LORA_BASICS_MODEM_MULTICAST. */
+	RZI_LORAWAN_CAP_MULTICAST = (1U << 2),
+	/** Backend provides the RZI FUOTA contract. Follows CONFIG_RZI_LORAWAN_FUOTA. */
+	RZI_LORAWAN_CAP_FUOTA = (1U << 3),
 };
 
 /**
@@ -927,7 +913,7 @@ __must_check int rzi_lorawan_get_activation(enum rzi_lorawan_activation *mode);
  *
  * @retval 0 Mode stored.
  * @retval -RZI_ERR_INVALID mode is not OTAA or ABP.
- * @retval -RZI_ERR_NOT_SUPPORTED The selected backend does not support mode.
+ * @retval -RZI_ERR_NOT_SUPPORTED The selected backend does not implement ABP.
  * @retval -RZI_ERR_BUSY A join sequence is in progress.
  * @retval -RZI_ERR_ISR Called from an ISR.
  * @retval -RZI_ERR_IO The mode could not be persisted.
@@ -1213,7 +1199,8 @@ __must_check int rzi_lorawan_get_network_time(struct rzi_lorawan_network_time *t
  * @retval -RZI_ERR_NOT_SUPPORTED The selected backend does not support the class.
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
- * @note Thread context only.
+ * @note Thread context only. Class A is passed to the backend directly.
+ *       Class B and Class C require the matching capability bit.
  * @since 0.2
  */
 __must_check int rzi_lorawan_set_class(enum rzi_lorawan_class device_class);
@@ -1235,7 +1222,7 @@ __must_check int rzi_lorawan_set_class(enum rzi_lorawan_class device_class);
 __must_check int rzi_lorawan_is_joined(bool *joined);
 
 /**
- * @brief Return the selected backend capability mask.
+ * @brief Return the optional packages compiled into the selected backend.
  *
  * @return Bitwise OR of values from enum rzi_lorawan_capability.
  * @since 0.2
@@ -2125,8 +2112,7 @@ __must_check int rzi_lorawan_send_empty(bool with_port, uint8_t port,
  * stores one channel mask, persists it with the credentials, and hands it to
  * the backend at the next join; sub-band and fixed-channel calls are views of
  * it. A channel mask from the network (LinkADRReq) replaces it until the next
- * join. Other regions, including CN470, and backends without
- * @ref RZI_LORAWAN_CAP_CHANNEL return -RZI_ERR_NOT_SUPPORTED.
+ * join. Other regions, including CN470, return -RZI_ERR_NOT_SUPPORTED.
  *  @{
  */
 

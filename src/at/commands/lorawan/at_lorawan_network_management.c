@@ -38,7 +38,7 @@ static int class_supported(enum rzi_lorawan_class device_class)
 
 	switch (device_class) {
 	case RZI_LORAWAN_CLASS_A:
-		return (capabilities & RZI_LORAWAN_CAP_CLASS_A) != 0U ? 0 : -RZI_ERR_NOT_SUPPORTED;
+		return 0;
 	case RZI_LORAWAN_CLASS_B:
 		return (capabilities & RZI_LORAWAN_CAP_CLASS_B) != 0U ? 0 : -RZI_ERR_NOT_SUPPORTED;
 	case RZI_LORAWAN_CLASS_C:

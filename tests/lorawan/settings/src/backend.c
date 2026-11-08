@@ -5,5 +5,5 @@
 
 /* This suite exercises stored policy before the radio is initialized. */
 const struct rzi_lorawan_backend_api rzi_lorawan_backend = {
-	.capabilities = RZI_LORAWAN_CAP_OTAA | RZI_LORAWAN_CAP_ABP | RZI_LORAWAN_CAP_CHANNEL,
+	.supports_abp = true,
 };

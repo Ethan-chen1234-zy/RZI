@@ -136,12 +136,13 @@ AT+APPKEY=00112233445566778899AABBCCDDEEFF
 ### Activation and class
 
 - `AT+NJM` is compatible with limits. OTAA (`1`) is supported. ABP (`0`) is
-  accepted when the backend advertises `RZI_LORAWAN_CAP_ABP`; otherwise the
+  accepted when the backend sets `supports_abp`; otherwise the
   write returns `AT_ERROR`.
 - `AT+NJS=?` is compatible and returns `AT+NJS=0` or `AT+NJS=1`.
-- `AT+CLASS` is compatible with limits. `A`, `B`, and `C` are accepted when
-  the selected backend advertises the matching class capability; otherwise
-  the write returns `AT_ERROR` (`-RZI_ERR_NOT_SUPPORTED`).
+- `AT+CLASS` is compatible with limits. `A` is accepted. `B` and `C` are
+  accepted when the selected backend advertises `RZI_LORAWAN_CAP_CLASS_B` or
+  `RZI_LORAWAN_CAP_CLASS_C`; otherwise the write returns `AT_ERROR`
+  (`-RZI_ERR_NOT_SUPPORTED`).
 
 ### Join
 

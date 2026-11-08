@@ -200,13 +200,17 @@ backend exists to prove a second stack can sit behind it. A backend:
   (`is_busy` is mandatory) and the enabled uplink data rates for the region
   (`get_enabled_data_rates`). The service keeps no shadow copies;
 - reports stack-side event loss as `ERROR` with `-RZI_ERR_OVERFLOW`;
-- sets a capability bit exactly when the matching ops table is non-NULL.
-  `rzi_lorawan_init()` asserts this. USP derives class B, class C, and
-  multicast from `CONFIG_LORA_BASICS_MODEM_CLASS_B`, `_CLASS_C`, and
-  `_MULTICAST`;
-- with `RZI_LORAWAN_CAP_CHANNEL` (no ops table), applies
-  `join_config.channel_mask` at `join()` and restores every channel when
-  `channel_mask_set` is false. The core owns and persists the mask. USP calls
+- sets `RZI_LORAWAN_CAP_CLASS_B`, `RZI_LORAWAN_CAP_MULTICAST`, and
+  `RZI_LORAWAN_CAP_FUOTA` exactly when the matching ops table is non-NULL.
+  `rzi_lorawan_init()` asserts this. Class C has a capability bit and no ops
+  table. USP derives those bits from `CONFIG_LORA_BASICS_MODEM_CLASS_B`,
+  `_CLASS_C`, `_MULTICAST`, and `CONFIG_RZI_LORAWAN_FUOTA`. Network, session,
+  MAC, and certification tables have no capability bit; a NULL table makes
+  the public call return `-RZI_ERR_NOT_SUPPORTED`. `supports_abp` is separate
+  from the capability mask. Zephyr sets it. USP leaves it clear;
+- applies `join_config.channel_mask` at `join()` and restores every channel
+  when `channel_mask_set` is false. The core owns and persists the mask. USP
+  calls
   `smtc_modem_set_channel_mask()` from the `usp/0003` patch; LBM ANDs it into
   every default channel mask, and the ADR back-off re-enables every channel.
   Zephyr sets loramac-node's default mask and current mask

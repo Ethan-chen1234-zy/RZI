@@ -23,12 +23,9 @@
 
 #define STACK_ID RZI_LORAWAN_USP_STACK_ID
 
-/* Class B, Class C and multicast follow the LBM build options. */
+/* Optional packages follow the LBM build options. */
 #define USP_CAPABILITIES                                                                           \
-	(RZI_LORAWAN_CAP_OTAA | RZI_LORAWAN_CAP_CLASS_A | RZI_LORAWAN_CAP_NETWORK |                \
-	 RZI_LORAWAN_CAP_CHANNEL | RZI_LORAWAN_CAP_SESSION | RZI_LORAWAN_CAP_MAC |                 \
-	 RZI_LORAWAN_CAP_CERTIFICATION |                                                           \
-	 (IS_ENABLED(CONFIG_LORA_BASICS_MODEM_CLASS_B) ? RZI_LORAWAN_CAP_CLASS_B : 0U) |           \
+	((IS_ENABLED(CONFIG_LORA_BASICS_MODEM_CLASS_B) ? RZI_LORAWAN_CAP_CLASS_B : 0U) |           \
 	 (IS_ENABLED(CONFIG_LORA_BASICS_MODEM_CLASS_C) ? RZI_LORAWAN_CAP_CLASS_C : 0U) |           \
 	 (IS_ENABLED(CONFIG_LORA_BASICS_MODEM_MULTICAST) ? RZI_LORAWAN_CAP_MULTICAST : 0U) |       \
 	 (IS_ENABLED(CONFIG_RZI_LORAWAN_FUOTA) ? RZI_LORAWAN_CAP_FUOTA : 0U))

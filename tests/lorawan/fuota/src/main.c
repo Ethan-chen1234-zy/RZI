@@ -132,8 +132,7 @@ static int fake_is_busy(bool *busy)
 }
 
 const struct rzi_lorawan_backend_api rzi_lorawan_backend = {
-	.capabilities = RZI_LORAWAN_CAP_OTAA | RZI_LORAWAN_CAP_CLASS_A | RZI_LORAWAN_CAP_CLASS_C |
-			RZI_LORAWAN_CAP_FUOTA,
+	.capabilities = RZI_LORAWAN_CAP_CLASS_C | RZI_LORAWAN_CAP_FUOTA,
 	.base.init = fake_init,
 	.base.stop = fake_stop,
 	.base.deinit = fake_deinit,

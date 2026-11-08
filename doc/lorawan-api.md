@@ -35,8 +35,8 @@ required by FUOTA come from the selected backend. RZI does not copy those
 package implementations.
 
 Public facades live in `include/rzi/lorawan/`. Private backend operation
-tables stay out of the public include path. A backend advertises runtime
-support with capability bits; a missing or NULL operation returns
+tables stay out of the public include path. Capability bits advertise Class
+B, Class C, multicast, and FUOTA. A missing or NULL operation returns
 `-RZI_ERR_NOT_SUPPORTED`. FUOTA remains Kconfig-gated. Raw LoRa P2P and FSK use the
 separate `CONFIG_RZI_LORA` and `include/rzi/lora/lora.h`.
 
@@ -242,16 +242,18 @@ the LoRaWAN 1.0.4 join duty cycle (1 % of airtime in the first hour, then
 The Zephyr backend waits `interval` seconds (default 8) between attempts and
 cannot abort a `lorawan_join()` already in progress; it drops that result.
 
-The public API can express OTAA and ABP. A backend that does not implement
-a mode returns `-RZI_ERR_NOT_SUPPORTED` from `rzi_lorawan_set_activation()` and
-from `rzi_lorawan_join()`.
-`rzi_lorawan_get_capabilities()` is optional discovery for portable code
-and the AT package; typical applications do not need to call it.
+The public API can express OTAA and ABP. A backend that does not
+implement ABP returns `-RZI_ERR_NOT_SUPPORTED` from
+`rzi_lorawan_set_activation()` and from `rzi_lorawan_join()`.
+`rzi_lorawan_get_capabilities()` reports the optional packages compiled into
+the selected backend. It follows the LoRa Basics Modem switches and does not
+advertise baseline operations. Typical applications call the API and handle
+`-RZI_ERR_NOT_SUPPORTED`.
 
-| Backend | Default capabilities | With `CONFIG_RZI_LORAWAN_FUOTA` |
+| Backend | Capability bits | With `CONFIG_RZI_LORAWAN_FUOTA` |
 |---|---|---|
-| USP | OTAA, Class A, NETWORK, SESSION, MAC, CERTIFICATION; Class B, Class C, and MULTICAST when the matching `CONFIG_LORA_BASICS_MODEM_*` option is enabled | Adds FUOTA |
-| Zephyr | OTAA, ABP, Class A/C, NETWORK, CHANNEL, SESSION, MAC | Adds FUOTA |
+| USP | Class B, Class C, and multicast when the matching `CONFIG_LORA_BASICS_MODEM_*` option is enabled | Adds FUOTA, which also selects Class B, Class C, multicast, and ALCSync |
+| Zephyr | Class C | Adds FUOTA |
 
 `AT+APPKEY` stores one AppKey. Native C callers that need a separate
 ChirpStack GenAppKey call `rzi_lorawan_set_gen_app_key()`. The AT package
@@ -432,7 +434,8 @@ and the internal event envelope. A backend:
 
 - follows LoRa Basics Modem semantics; other stacks emulate them (see
   [lorawan-backends.md](./lorawan-backends.md));
-- provides a capability bit mask and the mandatory `is_busy` operation;
+- provides the optional-package capability mask and the mandatory `is_busy`
+  operation;
 - receives region, development policy, and an event sink at `init`;
 - deep-copies the join config and send payload;
 - converts vendor return values to negative `RZI_ERR_*`;
@@ -442,10 +445,10 @@ and the internal event envelope. A backend:
 
 `src/lorawan/backend/lorawan_backend.h` hangs typed ops tables on the
 backend contract. A NULL table means the backend does not implement that
-group; a NULL member still returns `-RZI_ERR_NOT_SUPPORTED`. A public
-capability bit advertises runtime support and must stay aligned with the
-non-NULL pointers; `rzi_lorawan_init()` asserts this with `CONFIG_ASSERT`. Core public APIs are always compiled except FUOTA, which
-remains Kconfig-gated.
+group; a NULL member still returns `-RZI_ERR_NOT_SUPPORTED`. The Class B,
+multicast, and FUOTA capability bits stay aligned with their non-NULL
+pointers; `rzi_lorawan_init()` asserts this with `CONFIG_ASSERT`. Core public
+APIs are always compiled except FUOTA, which remains Kconfig-gated.
 
 A new backend implements the lifecycle operations and fills in the tables it
 has. Applications should not have to change the public call flow.

@@ -180,14 +180,17 @@ struct rzi_lorawan_base_ops {
  * @brief Operations supplied by exactly one selected LoRaWAN backend.
  *
  * A NULL optional ops pointer means the whole group is unsupported. A NULL
- * member inside an optional table returns -RZI_ERR_NOT_SUPPORTED. Each
- * optional table must be present exactly when its RZI_LORAWAN_CAP_* bit is
- * set; rzi_lorawan_init() asserts this.
+ * member inside an optional table returns -RZI_ERR_NOT_SUPPORTED. Class B,
+ * multicast, and FUOTA tables must be present exactly when their capability
+ * bits are set; rzi_lorawan_init() asserts this. Network, session, MAC, and
+ * certification tables have no capability bit.
  */
 struct rzi_lorawan_backend_api {
 	/** Bitwise OR of enum rzi_lorawan_capability values. */
 	uint32_t capabilities;
-	/** Base operations; get_class may be NULL. */
+	/** True when this backend can join with ABP. OTAA is always accepted. */
+	bool supports_abp;
+	/** Base operations; get_class and get_protocol_version may be NULL. */
 	struct rzi_lorawan_base_ops base;
 	/** MAC-parameter table, or NULL. */
 	const struct rzi_lorawan_network_ops *network;

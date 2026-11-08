@@ -108,7 +108,6 @@ static int fake_false(bool *value)
 }
 
 const struct rzi_lorawan_backend_api rzi_lorawan_backend = {
-	.capabilities = RZI_LORAWAN_CAP_OTAA | RZI_LORAWAN_CAP_CLASS_A,
 	.base.init = fake_init,
 	.base.join = fake_join,
 	.base.leave = fake_leave,
