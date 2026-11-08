@@ -54,6 +54,7 @@ workflow, including commit organization, rebase, DCO, and local validation.
 
 | Document | Status | Contents |
 |---|---|---|
+| [api-design.md](./api-design.md) | normative | Public C API design framework and ownership rules |
 | [coding-standards.md](./coding-standards.md) | normative | Layout, naming, errors, commits |
 | [api-docs.md](./api-docs.md) | normative | Doxygen and compiler annotations |
 | [sbom.md](./sbom.md) | implemented | SPDX 3 firmware and module SBOMs, minimum elements, releases |
