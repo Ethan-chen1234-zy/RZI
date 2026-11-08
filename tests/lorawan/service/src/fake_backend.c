@@ -348,6 +348,20 @@ static int fake_set_public_network(bool enabled)
 	return 0;
 }
 
+static bool duty_cycle_enabled = true;
+
+static int fake_get_duty_cycle(bool *enabled)
+{
+	*enabled = duty_cycle_enabled;
+	return 0;
+}
+
+static int fake_set_duty_cycle(bool enabled)
+{
+	duty_cycle_enabled = enabled;
+	return 0;
+}
+
 static int fake_get_lbt(bool *enabled)
 {
 	*enabled = lbt_enabled;
@@ -411,6 +425,8 @@ static const struct rzi_lorawan_network_ops fake_network_ops = {
 	.set_nb_trans = fake_set_nb_trans,
 	.get_public_network = fake_get_public_network,
 	.set_public_network = fake_set_public_network,
+	.get_duty_cycle = fake_get_duty_cycle,
+	.set_duty_cycle = fake_set_duty_cycle,
 	.get_lbt = fake_get_lbt,
 	.set_lbt = fake_set_lbt,
 	.get_lbt_rssi = fake_get_lbt_rssi,

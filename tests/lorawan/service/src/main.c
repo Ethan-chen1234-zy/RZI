@@ -351,14 +351,15 @@ ZTEST(rzi_lorawan_service, test_lifecycle_and_multiple_subscribers)
 		zassert_ok(rzi_lorawan_set_data_rate(RZI_LORAWAN_DR_3));
 		zassert_ok(rzi_lorawan_get_data_rate(&data_rate));
 		zassert_equal(data_rate, RZI_LORAWAN_DR_3);
-		/* RUI3-only parameters LoRa Basics Modem does not expose. */
+		zassert_ok(rzi_lorawan_set_duty_cycle(false));
+		zassert_ok(rzi_lorawan_get_duty_cycle(&flag));
+		zassert_false(flag);
+		/* RUI3 parameters this backend does not implement. */
 		zassert_equal(rzi_lorawan_set_rx2_data_rate(RZI_LORAWAN_DR_8),
 			      -RZI_ERR_NOT_SUPPORTED);
 		zassert_equal(rzi_lorawan_get_rx2_data_rate(&data_rate), -RZI_ERR_NOT_SUPPORTED);
 		zassert_equal(rzi_lorawan_set_tx_power(4), -RZI_ERR_NOT_SUPPORTED);
 		zassert_equal(rzi_lorawan_get_tx_power(&tx_power), -RZI_ERR_NOT_SUPPORTED);
-		zassert_equal(rzi_lorawan_set_duty_cycle(false), -RZI_ERR_NOT_SUPPORTED);
-		zassert_equal(rzi_lorawan_get_duty_cycle(&flag), -RZI_ERR_NOT_SUPPORTED);
 		zassert_equal(rzi_lorawan_set_rx1_delay(1500), -RZI_ERR_NOT_SUPPORTED);
 		zassert_equal(rzi_lorawan_get_rx2_delay(&delay), -RZI_ERR_NOT_SUPPORTED);
 		zassert_equal(rzi_lorawan_set_join_accept_delay1(5000), -RZI_ERR_NOT_SUPPORTED);

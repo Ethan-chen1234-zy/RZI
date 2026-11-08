@@ -336,6 +336,11 @@ without the control returns `-RZI_ERR_NOT_SUPPORTED`.
 - `rzi_lorawan_set_adr_ack()`: ADR_ACK_LIMIT and ADR_ACK_DELAY, 2 through 127;
 - `rzi_lorawan_set_join_data_rates()`: distribution used for Join-Requests;
   rejected with `-RZI_ERR_BUSY` while joining or joined;
+- `rzi_lorawan_set_duty_cycle()`: USP enforces or fully disables the regional
+  limit through `smtc_modem_debug_set_duty_cycle_state()`. Enabling returns
+  `-RZI_ERR_NOT_READY` before the region has duty-cycle bands. The getter
+  reports only the enforcing state; a temporary internal suspension is
+  reported as disabled. Zephyr returns `-RZI_ERR_NOT_SUPPORTED`;
 - `rzi_lorawan_get_duty_cycle_status()`: remaining regional duty-cycle budget
   in milliseconds (negative while blocked);
 - `rzi_lorawan_set_csma()` / `rzi_lorawan_set_csma_params()`: LBM CSMA,

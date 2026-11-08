@@ -28,6 +28,8 @@ rzi_check_lbm_prototype(lorawan_api/lorawan_api.h
   "^void lorawan_api_set_no_rx_packet_threshold\\( uint16_t no_rx_packet_reset_threshold, uint8_t stack_id \\);")
 rzi_check_lbm_prototype(lorawan_api/lorawan_api.h
   "^uint16_t lorawan_api_get_no_rx_packet_threshold\\( uint8_t stack_id \\);")
+rzi_check_lbm_prototype(lr1mac/src/services/smtc_duty_cycle.h
+  "^smtc_dtc_enablement_type_t smtc_duty_cycle_enable_get\\( void \\);")
 rzi_check_lbm_prototype(lorawan_packages/fragmented_data_block_transport/lorawan_fragmentation_package.h
   "^void lorawan_fragmentation_package_get_file_size\\( uint8_t stack_id, uint32_t\\* file_size \\);")
 rzi_check_lbm_prototype(smtc_modem_crypto/smtc_secure_element/smtc_secure_element.h

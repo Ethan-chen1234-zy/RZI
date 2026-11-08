@@ -233,6 +233,36 @@ static int usp_get_join_backoff(uint32_t *remaining_s)
 	return rzi_lorawan_usp_finish(rc);
 }
 
+/* smtc_dtc_enablement_type_t value that enforces the regional limit. */
+#define LBM_DTC_ENABLED 1
+
+static int usp_get_duty_cycle(bool *enabled)
+{
+	int rc = rzi_lorawan_usp_enter();
+
+	if (rc != 0) {
+		return rc;
+	}
+	*enabled = smtc_duty_cycle_enable_get() == LBM_DTC_ENABLED;
+	return rzi_lorawan_usp_finish(0);
+}
+
+static int usp_set_duty_cycle(bool enabled)
+{
+	smtc_modem_return_code_t result;
+	int rc = rzi_lorawan_usp_enter();
+
+	if (rc != 0) {
+		return rc;
+	}
+	result = smtc_modem_debug_set_duty_cycle_state(enabled);
+	if (result == SMTC_MODEM_RC_FAIL) {
+		/* Bands are not configured yet, so the limit cannot be turned on. */
+		return rzi_lorawan_usp_finish(-RZI_ERR_NOT_READY);
+	}
+	return rzi_lorawan_usp_finish(rzi_usp_result(result));
+}
+
 static int usp_get_duty_cycle_status(int32_t *time_ms)
 {
 	int rc = rzi_lorawan_usp_enter();
@@ -505,6 +535,8 @@ const struct rzi_lorawan_network_ops usp_network_ops = {
 	.get_adr_ack = usp_get_adr_ack,
 	.set_adr_ack = usp_set_adr_ack,
 	.set_join_data_rates = usp_set_join_data_rates,
+	.get_duty_cycle = usp_get_duty_cycle,
+	.set_duty_cycle = usp_set_duty_cycle,
 	.get_duty_cycle_status = usp_get_duty_cycle_status,
 	.get_join_backoff = usp_get_join_backoff,
 	.get_public_network = usp_get_public_network,

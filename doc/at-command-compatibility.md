@@ -222,12 +222,18 @@ milliseconds in the C API.
 `AT+DR` accepts only the uplink data rates the backend reports for the current
 region (LoRa Basics Modem: `smtc_modem_get_enabled_datarates()`).
 
+`AT+DCS` enables or disables the regional duty-cycle limit. On USP, disabling
+calls `smtc_modem_debug_set_duty_cycle_state(false)`. Enabling returns
+`AT_ERROR` until the regional bands exist. A query reports the limit as off
+while the modem has fully disabled it or suspended it internally. Zephyr
+returns `AT_ERROR`.
+
 The following commands stay registered for RUI3 command-set compatibility but
 always return `AT_ERROR` (`-RZI_ERR_NOT_SUPPORTED`) on every current backend.
 LoRa Basics Modem takes these values from the regional parameters and network
 MAC commands and has no application override:
 
-- `AT+TXP`, `AT+DCS`
+- `AT+TXP`
 - `AT+RX1DL`, `AT+RX2DL`, `AT+RX2DR`, `AT+RX2FQ`, `AT+JN1DL`, `AT+JN2DL`
 
 `AT+MASK`, `AT+CHE` and `AT+CHS` follow RUI3 for US915 and AU915 on both

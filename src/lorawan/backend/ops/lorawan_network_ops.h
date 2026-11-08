@@ -32,6 +32,10 @@ struct rzi_lorawan_network_ops {
 	int (*get_adr_ack)(uint8_t *limit, uint8_t *delay);
 	int (*set_adr_ack)(uint8_t limit, uint8_t delay);
 	int (*set_join_data_rates)(const uint8_t *distribution);
+	/** True while the regional duty-cycle limit is enforced. */
+	int (*get_duty_cycle)(bool *enabled);
+	/** Enforce or fully disable the regional duty-cycle limit. */
+	int (*set_duty_cycle)(bool enabled);
 	int (*get_duty_cycle_status)(int32_t *time_ms);
 	int (*get_join_backoff)(uint32_t *remaining_s);
 	int (*get_public_network)(bool *enabled);

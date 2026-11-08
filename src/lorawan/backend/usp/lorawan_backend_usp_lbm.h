@@ -23,6 +23,11 @@ void lorawan_api_set_no_rx_packet_threshold(uint16_t no_rx_packet_reset_threshol
 					    uint8_t stack_id);
 uint16_t lorawan_api_get_no_rx_packet_threshold(uint8_t stack_id);
 
+/* lr1mac/src/services/smtc_duty_cycle.h
+ * 0 partial, 1 enabled, 2 fully disabled. int avoids redefining the LBM enum.
+ */
+int smtc_duty_cycle_enable_get(void);
+
 #ifdef CONFIG_LORA_BASICS_MODEM_FUOTA_V2
 /* lorawan_packages/fragmented_data_block_transport/lorawan_fragmentation_package.h */
 void lorawan_fragmentation_package_get_file_size(uint8_t stack_id, uint32_t *file_size);

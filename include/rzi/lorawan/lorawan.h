@@ -1389,10 +1389,9 @@ __must_check int rzi_lorawan_set_tx_power(uint8_t tx_power);
  * @retval -RZI_ERR_NOT_SUPPORTED The backend does not support this query.
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
- * @note Thread context only.
- * @note Reserved for RUI3 compatibility. Every current backend returns
- *       -RZI_ERR_NOT_SUPPORTED: LoRa Basics Modem takes this parameter from
- *       the regional parameters and network MAC commands.
+ * @note Thread context only. USP reads the modem state. A temporary internal
+ *       suspension, such as during certification, is reported as disabled.
+ *       Zephyr returns -RZI_ERR_NOT_SUPPORTED.
  * @since 0.3
  */
 __must_check int rzi_lorawan_get_duty_cycle(bool *enabled);
@@ -1403,14 +1402,15 @@ __must_check int rzi_lorawan_get_duty_cycle(bool *enabled);
  * @param enabled True to enforce the regional duty cycle.
  *
  * @retval 0 Setting applied.
- * @retval -RZI_ERR_NOT_READY The service is not active.
+ * @retval -RZI_ERR_NOT_READY The service is not active, or the region has no
+ *         duty-cycle bands yet so the limit cannot be enabled.
  * @retval -RZI_ERR_NOT_SUPPORTED The backend does not support this setting.
+ * @retval -RZI_ERR_BUSY The modem is in test mode.
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
- * @note Thread context only.
- * @note Reserved for RUI3 compatibility. Every current backend returns
- *       -RZI_ERR_NOT_SUPPORTED: LoRa Basics Modem takes this parameter from
- *       the regional parameters and network MAC commands.
+ * @note Thread context only. USP can disable the limit before bands exist.
+ *       Enabling waits until the regional bands are configured. Zephyr returns
+ *       -RZI_ERR_NOT_SUPPORTED.
  * @since 0.3
  */
 __must_check int rzi_lorawan_set_duty_cycle(bool enabled);

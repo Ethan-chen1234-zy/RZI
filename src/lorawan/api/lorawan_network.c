@@ -123,14 +123,15 @@ int rzi_lorawan_set_tx_power(uint8_t tx_power)
 
 int rzi_lorawan_get_duty_cycle(bool *enabled)
 {
-	ARG_UNUSED(enabled);
-	return unsupported();
+	if (enabled == NULL) {
+		return -RZI_ERR_INVALID;
+	}
+	CALL_NETWORK_OP(get_duty_cycle, enabled);
 }
 
 int rzi_lorawan_set_duty_cycle(bool enabled)
 {
-	ARG_UNUSED(enabled);
-	return unsupported();
+	CALL_NETWORK_OP(set_duty_cycle, enabled);
 }
 
 int rzi_lorawan_get_rx1_delay(uint32_t *delay_ms)

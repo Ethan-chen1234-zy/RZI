@@ -22,9 +22,10 @@ P2P/FSK is `include/rzi/lora/lora.h`, not this ABI.
 
 `tx_power` is the LoRaWAN power index, not dBm. `sub_band` is 0 (all) or
 1–8 with LoRaWAN FSB semantics (eight 125 kHz channels plus 500 kHz channel
-63+n). TX power, duty-cycle enable, RX and join-accept windows, and RX2
-settings are kept for RUI3 source compatibility but return
-`-RZI_ERR_NOT_SUPPORTED` on every current backend. `query_tx_possible()` returns `0` when `size` fits the current data
+63+n). TX power, RX and join-accept windows, and RX2 settings are kept
+for RUI3 source compatibility but return `-RZI_ERR_NOT_SUPPORTED` on every
+current backend. USP duty-cycle enable uses the modem debug control and can
+be read back; Zephyr still returns `-RZI_ERR_NOT_SUPPORTED`. `query_tx_possible()` returns `0` when `size` fits the current data
 rate. Class B ping-slot periodicity is 0–7. Channel masks are US915 / AU915
 only (72 channels, 5 or 6 words). The core stores the mask with the
 credentials and applies it at the next join, so the channel calls work before
@@ -205,7 +206,8 @@ backend implements that group. A NULL operation still returns `-RZI_ERR_NOT_SUPP
 | Join / send / class | OTAA, Class A; Class B/C per LBM Kconfig | OTAA, ABP, Class A/C |
 | ADR, DR, public network, LBT | Yes | ADR, DR |
 | Link control (ADR profile, NbTrans, ADR ACK, CSMA, duty-cycle status, …) | Yes (CSMA with `CONFIG_LORA_BASICS_MODEM_CSMA`) | `-RZI_ERR_NOT_SUPPORTED` |
-| TX power, duty-cycle enable, RX / join windows | `-RZI_ERR_NOT_SUPPORTED` (not in `smtc_modem_*`) | `-RZI_ERR_NOT_SUPPORTED` |
+| TX power, RX / join windows | `-RZI_ERR_NOT_SUPPORTED` (not in `smtc_modem_*`) | `-RZI_ERR_NOT_SUPPORTED` |
+| Duty-cycle enable | `smtc_modem_debug_set_duty_cycle_state()`; read via the modem state | `-RZI_ERR_NOT_SUPPORTED` |
 | Channel mask, sub-band, fixed channel (US915 / AU915) | Yes (`usp/0003` patch) | Yes |
 | RSSI / SNR / protocol version | Core downlink cache / constant | Same |
 | `query_tx_possible` / `is_busy` / DevNonce | TX size and busy | TX size, busy, DevNonce |
@@ -260,7 +262,8 @@ commands, RAK3172 `AT+UID`, and transparent / binary API modes.
 | Join / send | `get_last_recv` | AT `RECV` | AT-only | |
 | Join / send | `service_lora_lptp_send` | AT `LPSEND` | missing | LPSEND is one frame, max 242, not LPTP |
 | Network | ADR, class, DR, PNM | matching `rzi_lorawan_get/set_*` | present | |
-| Network | DCS, TXP | matching `rzi_lorawan_get/set_*` | limited | API kept; every backend returns `-RZI_ERR_NOT_SUPPORTED` |
+| Network | DCS | `rzi_lorawan_get/set_duty_cycle` | present | USP only. Zephyr returns `-RZI_ERR_NOT_SUPPORTED` |
+| Network | TXP | `rzi_lorawan_get/set_tx_power` | limited | API kept; every backend returns `-RZI_ERR_NOT_SUPPORTED` |
 | Network | `get_real_class_from_stack` | `rzi_lorawan_get_class` | missing | No separate stack-vs-requested class |
 | Network | RX1/RX2 delays, RX2 DR/freq, JN1/JN2 | matching getters/setters | limited | API kept; every backend returns `-RZI_ERR_NOT_SUPPORTED` |
 | Network | LBT / RSSI / scantime | matching getters/setters | present | |
