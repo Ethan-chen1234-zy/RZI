@@ -2274,15 +2274,22 @@ __must_check int rzi_lorawan_get_last_rssi(int16_t *rssi_dbm);
 __must_check int rzi_lorawan_get_last_snr(int8_t *snr_quarter_db);
 
 /**
- * @brief Return the LoRaWAN specification string implemented by the stack.
+ * @brief Return the LoRaWAN specification implemented by the selected backend.
+ *
+ * The USP backend appends the LoRa Basics Modem firmware version it reads from
+ * the modem, for example "LoRaWAN 1.0.4 (LBM 4.9.0)". A backend without a
+ * queryable modem version returns the specification string alone.
  *
  * @param[out] version Pointer to a static NUL-terminated string.
  *
  * @retval 0 Pointer stored.
  * @retval -RZI_ERR_INVALID version is NULL.
+ * @retval -RZI_ERR_NOT_SUPPORTED This backend does not report a version.
+ * @retval -RZI_ERR_BUSY The modem is in test mode.
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
- * @note Thread context only. The pointer remains valid for the process lifetime.
+ * @note Thread context only. Initialization is not required. After success,
+ *       the pointer remains valid for the process lifetime.
  * @since 0.3
  */
 __must_check int rzi_lorawan_get_protocol_version(const char **version);

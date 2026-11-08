@@ -49,7 +49,6 @@ static atomic_t join_retries_remaining;
 static bool last_downlink_valid;
 static int16_t last_rssi_dbm;
 static int8_t last_snr_quarter_db;
-static const char protocol_version[] = "LoRaWAN 1.0.4";
 #if defined(CONFIG_RZI_POWER)
 static bool power_class_c_held;
 #endif
@@ -1013,8 +1012,10 @@ int rzi_lorawan_get_protocol_version(const char **version)
 	if (version == NULL) {
 		return -RZI_ERR_INVALID;
 	}
-	*version = protocol_version;
-	return 0;
+	if (rzi_lorawan_backend.base.get_protocol_version == NULL) {
+		return -RZI_ERR_NOT_SUPPORTED;
+	}
+	return rzi_lorawan_backend.base.get_protocol_version(version);
 }
 
 int rzi_lorawan_is_busy(bool *busy)

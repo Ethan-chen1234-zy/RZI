@@ -151,7 +151,9 @@ int rzi_lorawan_send_empty(bool with_port, uint8_t port,
 ```
 
 `get_last_rssi` / `get_last_snr` are filled from the last application
-downlink. `get_protocol_version` is `"LoRaWAN 1.0.4"`.
+downlink. `get_protocol_version` comes from the selected backend. USP reads
+`smtc_modem_get_modem_version()` and returns `"LoRaWAN 1.0.4 (LBM <firmware>)"`.
+Zephyr returns the specification string `"LoRaWAN 1.0.4"`.
 
 ## LinkCheck and DeviceTime (`lorawan.h`)
 
@@ -209,7 +211,8 @@ backend implements that group. A NULL operation still returns `-RZI_ERR_NOT_SUPP
 | TX power, RX / join windows | `-RZI_ERR_NOT_SUPPORTED` (not in `smtc_modem_*`) | `-RZI_ERR_NOT_SUPPORTED` |
 | Duty-cycle enable | `smtc_modem_debug_set_duty_cycle_state()`; read via the modem state | `-RZI_ERR_NOT_SUPPORTED` |
 | Channel mask, sub-band, fixed channel (US915 / AU915) | Yes (`usp/0003` patch) | Yes |
-| RSSI / SNR / protocol version | Core downlink cache / constant | Same |
+| RSSI / SNR | Core downlink cache | Same |
+| Protocol version | `"LoRaWAN 1.0.4 (LBM <firmware>)"` from `smtc_modem_get_modem_version()` | `"LoRaWAN 1.0.4"` |
 | `query_tx_possible` / `is_busy` / DevNonce | TX size and busy | TX size, busy, DevNonce |
 | Class B ping-slot / state | Yes; beacon fields `-RZI_ERR_NOT_SUPPORTED` | `-RZI_ERR_NOT_SUPPORTED` |
 | LinkCheckReq / DeviceTimeReq | Yes | Yes (not under `CONFIG_LORAWAN_EMUL`) |

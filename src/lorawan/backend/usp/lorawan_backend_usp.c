@@ -744,6 +744,42 @@ static int usp_stop(void)
 	return rc;
 }
 
+/* "LoRaWAN 1.0.4 (LBM 255.255.255)" plus a terminator fits. */
+#define USP_PROTOCOL_VERSION_SIZE 40
+
+static char protocol_version[USP_PROTOCOL_VERSION_SIZE];
+static bool protocol_version_ready;
+static K_MUTEX_DEFINE(protocol_version_lock);
+
+static int usp_get_protocol_version(const char **version)
+{
+	smtc_modem_version_t firmware;
+	int written;
+	int rc = 0;
+
+	k_mutex_lock(&protocol_version_lock, K_FOREVER);
+	if (!protocol_version_ready) {
+		/* Firmware identity is a build constant and does not need init. */
+		rc = rzi_usp_result(smtc_modem_get_modem_version(&firmware));
+		if (rc == 0) {
+			written = snprintk(
+				protocol_version, sizeof(protocol_version),
+				"LoRaWAN 1.0.4 (LBM %u.%u.%u)", (unsigned int)firmware.major,
+				(unsigned int)firmware.minor, (unsigned int)firmware.patch);
+			if (written < 0 || written >= (int)sizeof(protocol_version)) {
+				rc = -RZI_ERR_NO_RESOURCE;
+			} else {
+				protocol_version_ready = true;
+			}
+		}
+	}
+	if (rc == 0) {
+		*version = protocol_version;
+	}
+	k_mutex_unlock(&protocol_version_lock);
+	return rc;
+}
+
 static int usp_deinit(void)
 {
 	int rc = 0;
@@ -771,6 +807,7 @@ const struct rzi_lorawan_backend_api rzi_lorawan_backend = {
 	.base.get_class = usp_get_class,
 	.base.is_joined = usp_is_joined,
 	.base.is_busy = usp_is_busy,
+	.base.get_protocol_version = usp_get_protocol_version,
 	.network = &usp_network_ops,
 	.session = &usp_session_ops,
 #ifdef CONFIG_LORA_BASICS_MODEM_CLASS_B

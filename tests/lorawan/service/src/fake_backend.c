@@ -715,6 +715,12 @@ static const struct rzi_lorawan_certification_ops fake_cert_ops = {
 	.set_port_enabled = fake_set_cert_port,
 };
 
+static int fake_get_protocol_version(const char **version)
+{
+	*version = "LoRaWAN 1.0.4";
+	return 0;
+}
+
 const struct rzi_lorawan_backend_api rzi_lorawan_backend = {
 	.capabilities = FAKE_CAPABILITIES,
 	.base.init = fake_init,
@@ -727,6 +733,7 @@ const struct rzi_lorawan_backend_api rzi_lorawan_backend = {
 	.base.get_class = fake_get_class,
 	.base.is_joined = fake_is_joined,
 	.base.is_busy = fake_is_busy,
+	.base.get_protocol_version = fake_get_protocol_version,
 	.network = &fake_network_ops,
 	.class_b = &fake_class_b_ops,
 	.session = &fake_session_ops,

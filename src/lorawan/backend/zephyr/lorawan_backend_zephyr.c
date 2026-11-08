@@ -663,6 +663,15 @@ static int zephyr_set_class(enum rzi_lorawan_class device_class)
 	return rzi_lorawan_zephyr_err(rc);
 }
 
+static int zephyr_get_protocol_version(const char **version)
+{
+	/* loramac-node has no modem-firmware query. This is its MAC specification. */
+	static const char specification[] = "LoRaWAN 1.0.4";
+
+	*version = specification;
+	return 0;
+}
+
 static int zephyr_is_joined(bool *is_joined)
 {
 	if (is_joined == NULL) {
@@ -689,6 +698,7 @@ const struct rzi_lorawan_backend_api rzi_lorawan_backend = {
 	.base.get_class = zephyr_get_class,
 	.base.is_joined = zephyr_is_joined,
 	.base.is_busy = zephyr_is_busy,
+	.base.get_protocol_version = zephyr_get_protocol_version,
 	.network = &zephyr_network_ops,
 	.session = &zephyr_session_ops,
 	.mac = &zephyr_mac_ops,

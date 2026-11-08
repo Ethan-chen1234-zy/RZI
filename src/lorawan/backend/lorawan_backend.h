@@ -169,6 +169,11 @@ struct rzi_lorawan_base_ops {
 	int (*is_joined)(bool *joined);
 	/** Store whether the stack is still processing an uplink. */
 	int (*is_busy)(bool *busy);
+	/**
+	 * Store the backend's static version string. NULL when unsupported.
+	 * USP appends the firmware from smtc_modem_get_modem_version().
+	 */
+	int (*get_protocol_version)(const char **version);
 };
 
 /**
