@@ -3,7 +3,7 @@
 Status: normative
 
 Public C contract between applications and the selected protocol backend.
-The precise ABI is `include/rzi/lorawan/lorawan.h` (group 0.4.0) plus
+The precise ABI is `include/rzi/lorawan/lorawan.h` (group 0.1.0) plus
 `multicast.h`, `certification.h`, and `fuota.h`.
 
 See also: [error-codes.md](./error-codes.md),

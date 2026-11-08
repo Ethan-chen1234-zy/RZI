@@ -3,7 +3,7 @@
 Status: normative
 
 Closed public failure catalog for every fallible `rzi_*` C API. The ABI is
-`include/rzi/err.h` (group 0.4.0).
+`include/rzi/err.h` (group 0.1.0).
 
 See also: [coding-standards.md](./coding-standards.md),
 [architecture.md](./architecture.md),

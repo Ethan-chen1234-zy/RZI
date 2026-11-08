@@ -20,8 +20,8 @@ extern "C" {
 
 /** @defgroup rzi_lora RZI raw LoRa / FSK
  *  @brief Thread-safe C API for P2P LoRa and FSK.
- *  @since 0.3
- *  @version 0.5.0
+ *  @since 0.1.0
+ *  @version 0.1.0
  *  @{
  */
 
@@ -111,7 +111,6 @@ struct rzi_lora_callbacks {
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lora_register_callbacks(const struct rzi_lora_callbacks *callbacks);
 
@@ -131,7 +130,6 @@ __must_check int rzi_lora_register_callbacks(const struct rzi_lora_callbacks *ca
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.4
  */
 __must_check int rzi_lora_init(enum rzi_lora_modulation modulation);
 
@@ -147,7 +145,6 @@ __must_check int rzi_lora_init(enum rzi_lora_modulation modulation);
  *
  * @note Thread context only. The caller must serialize this with send,
  *       receive and poll, including any callbacks they deliver.
- * @since 0.3
  */
 __must_check int rzi_lora_stop(void);
 
@@ -160,7 +157,6 @@ __must_check int rzi_lora_stop(void);
  * @return 0 on success, otherwise a negative RZI_ERR_* from stop or release.
  * @note Thread context only. The caller must serialize this with send,
  *       receive and poll, including any callbacks they deliver.
- * @since 0.5
  */
 __must_check int rzi_lora_deinit(void);
 
@@ -170,7 +166,6 @@ __must_check int rzi_lora_deinit(void);
  * @return True after a successful rzi_lora_init() and before stop/deinit.
  *
  * @note May be called from any thread.
- * @since 0.3
  */
 bool rzi_lora_is_active(void);
 
@@ -184,7 +179,6 @@ bool rzi_lora_is_active(void);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lora_get_config(struct rzi_lora_config *config);
 
@@ -202,7 +196,6 @@ __must_check int rzi_lora_get_config(struct rzi_lora_config *config);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lora_set_config(const struct rzi_lora_config *config);
 
@@ -227,7 +220,6 @@ __must_check int rzi_lora_set_config(const struct rzi_lora_config *config);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lora_send(const uint8_t *data, size_t size);
 
@@ -246,7 +238,6 @@ __must_check int rzi_lora_send(const uint8_t *data, size_t size);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lora_receive(uint32_t timeout_ms);
 
@@ -256,7 +247,6 @@ __must_check int rzi_lora_receive(uint32_t timeout_ms);
  * @return True after a successful rzi_lora_receive() with a non-zero timeout.
  *
  * @note May be called from any thread.
- * @since 0.3
  */
 bool rzi_lora_receive_active(void);
 
@@ -269,7 +259,6 @@ bool rzi_lora_receive_active(void);
  * thread, so call it periodically while waiting for them.
  *
  * @note Thread context only.
- * @since 0.3
  */
 void rzi_lora_poll(void);
 
@@ -284,7 +273,6 @@ void rzi_lora_poll(void);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lora_test_rssi(void);
 
@@ -303,7 +291,6 @@ __must_check int rzi_lora_test_rssi(void);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.5
  */
 __must_check int rzi_lora_test_get_rssi(int16_t *rssi_dbm);
 
@@ -315,7 +302,6 @@ __must_check int rzi_lora_test_get_rssi(int16_t *rssi_dbm);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lora_test_tone(void);
 
@@ -329,7 +315,6 @@ __must_check int rzi_lora_test_tone(void);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lora_test_tx(uint32_t packet_count);
 
@@ -343,7 +328,6 @@ __must_check int rzi_lora_test_tx(uint32_t packet_count);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lora_test_rx(uint32_t packet_count);
 
@@ -359,7 +343,6 @@ __must_check int rzi_lora_test_rx(uint32_t packet_count);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lora_test_cw(uint32_t frequency_hz, int8_t power_dbm, uint32_t duration_ms);
 
@@ -371,7 +354,6 @@ __must_check int rzi_lora_test_cw(uint32_t frequency_hz, int8_t power_dbm, uint3
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lora_test_stop(void);
 

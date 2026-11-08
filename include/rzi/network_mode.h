@@ -17,8 +17,8 @@ extern "C" {
 
 /** @defgroup rzi_network_mode RZI network-mode persistence
  *  @brief Persist the radio working mode independently of command adapters.
- *  @since 0.5
- *  @version 0.5.0
+ *  @since 0.1.0
+ *  @version 0.1.0
  *  @{
  */
 
@@ -48,7 +48,6 @@ enum rzi_network_mode {
  * @retval -RZI_ERR_ISR Called from an ISR.
  * @retval -RZI_ERR_IO Storage access failed.
  * @note Thread context only.
- * @since 0.5
  */
 __must_check int rzi_get_network_mode(enum rzi_network_mode *mode);
 
@@ -66,7 +65,6 @@ __must_check int rzi_get_network_mode(enum rzi_network_mode *mode);
  * @retval -RZI_ERR_ISR Called from an ISR.
  * @retval -RZI_ERR_IO Storage access failed.
  * @note Thread context only.
- * @since 0.5
  */
 __must_check int rzi_set_network_mode(enum rzi_network_mode mode);
 

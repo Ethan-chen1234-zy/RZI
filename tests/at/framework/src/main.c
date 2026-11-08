@@ -127,7 +127,7 @@ ZTEST(rzi_at_framework, test_attention_and_crlf)
 ZTEST(rzi_at_framework, test_command_name_is_case_insensitive)
 {
 	send_command("at+ver=?\r");
-	zassert_not_null(strstr(output, "AT+VER=RZI_0.2.0_"));
+	zassert_not_null(strstr(output, "AT+VER=RZI_0.1.0_"));
 }
 
 ZTEST(rzi_at_framework, test_argument_case_is_preserved)

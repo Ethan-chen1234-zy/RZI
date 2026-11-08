@@ -26,8 +26,8 @@ extern "C" {
  *  the SoC device tree and policy. RZI adds no state-selection policy.
  *  The LoRaWAN backend owns RX1/RX2 timing.
  *
- *  @since 0.2
- *  @version 0.4.0
+ *  @since 0.1.0
+ *  @version 0.1.0
  *  @{
  */
 
@@ -96,7 +96,6 @@ __must_check int rzi_power_get_pm_enabled(bool *enabled);
  * @retval -RZI_ERR_NO_RESOURCE The lock's reference count is full.
  * @retval -RZI_ERR_ISR Called from an ISR.
  * @note Thread context only.
- * @since 0.2
  */
 __must_check int rzi_power_lock_get(enum rzi_power_lock lock);
 
@@ -109,7 +108,6 @@ __must_check int rzi_power_lock_get(enum rzi_power_lock lock);
  * @retval -RZI_ERR_INVALID @p lock is invalid or has no matching take.
  * @retval -RZI_ERR_ISR Called from an ISR.
  * @note Thread context only.
- * @since 0.2
  */
 __must_check int rzi_power_lock_put(enum rzi_power_lock lock);
 
@@ -122,7 +120,6 @@ __must_check int rzi_power_lock_put(enum rzi_power_lock lock);
  * @retval -RZI_ERR_INVALID @p lock_mask is NULL.
  * @retval -RZI_ERR_ISR Called from an ISR.
  * @note Thread context only.
- * @since 0.2
  */
 __must_check int rzi_power_get_lock_mask(uint32_t *lock_mask);
 

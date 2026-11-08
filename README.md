@@ -13,7 +13,7 @@ Zephyr's native build system, device model, and hardware description. Product
 firmware can therefore evolve its radio backend without changing its public
 application interface.
 
-- **Current version:** [0.2.0](include/rzi/version.h)
+- **Current version:** [0.1.0](include/rzi/version.h)
 - **Changes:** [Changelog](CHANGELOG.md)
 - **License:** [Apache-2.0](LICENSE)
 

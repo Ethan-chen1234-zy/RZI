@@ -20,8 +20,8 @@ extern "C" {
 /**
  * @defgroup rzi_at RZI AT service
  * @brief Transport-independent AT command processing.
- * @since 0.2
- * @version 0.5.0
+ * @since 0.1.0
+ * @version 0.1.0
  * @{
  */
 
@@ -123,7 +123,6 @@ struct rzi_at_io {
  *
  * @note Thread context only. Register before the AT thread is running. The
  *       command table is not locked.
- * @since 0.2
  */
 __must_check int rzi_at_register(const struct rzi_at_command *commands, size_t count);
 
@@ -144,7 +143,6 @@ __must_check int rzi_at_register(const struct rzi_at_command *commands, size_t c
  * @note Thread context only. Runtime stop and restart are not supported.
  *       Command-package or extension startup may also return a negative
  *       RZI_ERR_* from that package.
- * @since 0.5
  */
 __must_check int rzi_at_init(const struct rzi_at_io *io);
 
@@ -163,7 +161,6 @@ __must_check int rzi_at_init(const struct rzi_at_io *io);
  * @retval -RZI_ERR_OVERFLOW The ring buffer overflowed.
  *
  * @note This function is ISR-safe and non-blocking.
- * @since 0.2
  */
 __must_check int rzi_at_receive(const uint8_t *data, size_t size);
 
@@ -176,7 +173,6 @@ __must_check int rzi_at_receive(const uint8_t *data, size_t size);
  *         or the active I/O binding.
  *
  * @note Thread context only.
- * @since 0.2
  */
 __must_check int rzi_at_respond_status(enum rzi_at_status status);
 
@@ -202,7 +198,6 @@ __must_check int rzi_at_respond_status(enum rzi_at_status status);
  *         formatting, or the active I/O binding.
  *
  * @note Thread context only.
- * @since 0.2
  */
 __printf_like(1, 2) __must_check int rzi_at_respond_value(const char *format, ...);
 
@@ -216,7 +211,6 @@ __printf_like(1, 2) __must_check int rzi_at_respond_value(const char *format, ..
  *         formatting, or the active I/O binding.
  *
  * @note Thread context only.
- * @since 0.2
  */
 __printf_like(1, 2) __must_check int rzi_at_publish_event(const char *format, ...);
 

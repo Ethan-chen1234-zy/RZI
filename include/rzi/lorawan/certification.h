@@ -32,7 +32,6 @@ extern "C" {
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_get_certification_mode(bool *enabled);
 
@@ -47,7 +46,6 @@ __must_check int rzi_lorawan_get_certification_mode(bool *enabled);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_set_certification_mode(bool enabled);
 
@@ -63,7 +61,6 @@ __must_check int rzi_lorawan_set_certification_mode(bool enabled);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_get_certification_port_enabled(bool *enabled);
 
@@ -78,7 +75,6 @@ __must_check int rzi_lorawan_get_certification_port_enabled(bool *enabled);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_set_certification_port_enabled(bool enabled);
 

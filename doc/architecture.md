@@ -2,7 +2,7 @@
 
 Status: implemented
 
-SDK 0.2.0 layering, ownership, and backend policy. Planned items are marked
+SDK 0.1.0 layering, ownership, and backend policy. Planned items are marked
 in the text and in §18. The public ABI is `include/rzi/`.
 
 See also: [boot.md](./boot.md), [lorawan-api.md](./lorawan-api.md),

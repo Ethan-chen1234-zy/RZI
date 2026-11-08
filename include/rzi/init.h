@@ -16,8 +16,8 @@ extern "C" {
 /**
  * @defgroup rzi_init RZI shared infrastructure
  * @brief Parameter-free infrastructure shared by RZI services.
- * @since 0.4
- * @version 0.5.0
+ * @since 0.1.0
+ * @version 0.1.0
  * @{
  */
 
@@ -41,7 +41,6 @@ extern "C" {
  * @retval negative The first infrastructure initialization error.
  *
  * @note Thread context only.
- * @since 0.4
  */
 __must_check int rzi_init(void);
 

@@ -21,8 +21,8 @@ extern "C" {
  * @defgroup rzi_at_uart RZI AT UART adapter
  * @ingroup rzi_at
  * @brief UART binding for the RZI AT service.
- * @since 0.2
- * @version 0.5.0
+ * @since 0.1.0
+ * @version 0.1.0
  * @{
  */
 
@@ -39,7 +39,6 @@ extern "C" {
  *
  * @pre UART interrupt support is enabled.
  * @note Thread context only.
- * @since 0.5
  */
 __must_check int rzi_at_uart_init(const struct device *uart);
 
@@ -51,7 +50,6 @@ __must_check int rzi_at_uart_init(const struct device *uart);
  * @retval 0 Baud rate stored.
  * @retval -RZI_ERR_NOT_READY The UART adapter is not initialized.
  * @retval -RZI_ERR_INVALID baud_rate is NULL.
- * @since 0.3
  */
 __must_check int rzi_at_uart_get_baud(uint32_t *baud_rate);
 
@@ -63,7 +61,6 @@ __must_check int rzi_at_uart_get_baud(uint32_t *baud_rate);
  * @retval 0 Baud rate applied.
  * @retval -RZI_ERR_NOT_READY The UART adapter is not initialized.
  * @retval -RZI_ERR_INVALID baud_rate is zero.
- * @since 0.3
  */
 __must_check int rzi_at_uart_set_baud(uint32_t baud_rate);
 

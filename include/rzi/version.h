@@ -14,16 +14,16 @@ extern "C" {
 /** RZI SDK semantic-version major component. */
 #define RZI_VERSION_MAJOR  0
 /** RZI SDK semantic-version minor component. */
-#define RZI_VERSION_MINOR  2
+#define RZI_VERSION_MINOR  1
 /** RZI SDK semantic-version patch component. */
 #define RZI_VERSION_PATCH  0
 /** Canonical RZI SDK semantic-version string. */
-#define RZI_VERSION_STRING "0.2.0"
+#define RZI_VERSION_STRING "0.1.0"
 
 /** @defgroup rzi_version RZI SDK version
  *  @brief Process-wide RZI SDK version query.
- *  @since 0.2
- *  @version 0.2.0
+ *  @since 0.1.0
+ *  @version 0.1.0
  *  @{
  */
 
@@ -31,7 +31,6 @@ extern "C" {
  * @brief Return the canonical RZI SDK semantic version.
  *
  * @return Static null-terminated version string.
- * @since 0.2
  */
 const char *rzi_version_get_string(void);
 

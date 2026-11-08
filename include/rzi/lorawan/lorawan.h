@@ -20,8 +20,8 @@ extern "C" {
 
 /** @defgroup rzi_lorawan RZI LoRaWAN service
  *  @brief Thread-safe C API for the RZI LoRaWAN service.
- *  @since 0.2
- *  @version 0.5.0
+ *  @since 0.1.0
+ *  @version 0.1.0
  *  @{
  */
 
@@ -374,7 +374,6 @@ struct rzi_lorawan_event {
  * after returning.
  *
  * @note A callback may call non-blocking RZI LoRaWAN APIs.
- * @since 0.2
  */
 struct rzi_lorawan_callbacks {
 	/** Called once for each delivered public event. */
@@ -406,7 +405,6 @@ struct rzi_lorawan_callbacks {
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.2
  */
 __must_check int rzi_lorawan_register_callbacks(const struct rzi_lorawan_callbacks *callbacks);
 
@@ -425,7 +423,6 @@ __must_check int rzi_lorawan_register_callbacks(const struct rzi_lorawan_callbac
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.2
  */
 __must_check int rzi_lorawan_unregister_callbacks(const struct rzi_lorawan_callbacks *callbacks);
 
@@ -443,7 +440,6 @@ __must_check int rzi_lorawan_unregister_callbacks(const struct rzi_lorawan_callb
  *      overrides this value. With CONFIG_RZI_STORAGE, this setting persists.
  * @note Thread context only. Channel-mask commands use the stored region
  *       before initialization.
- * @since 0.2
  */
 __must_check int rzi_lorawan_set_region(enum rzi_lorawan_region region);
 
@@ -462,7 +458,6 @@ __must_check int rzi_lorawan_set_region(enum rzi_lorawan_region region);
  *          duty-cycle control ignore this setting.
  * @pre The service has not been initialized.
  * @note Thread context only.
- * @since 0.2
  */
 __must_check int rzi_lorawan_set_join_backoff_bypass(bool enabled);
 
@@ -486,7 +481,6 @@ __must_check int rzi_lorawan_set_join_backoff_bypass(bool enabled);
  * @note Thread context only; not callable from a LoRaWAN callback.
  *       After stop, call init again and wait for READY before joining.
  *       Credentials may be stored before or after init, and before join.
- * @since 0.4
  */
 __must_check int rzi_lorawan_init(enum rzi_lorawan_region region);
 
@@ -504,7 +498,6 @@ __must_check int rzi_lorawan_init(enum rzi_lorawan_region region);
  * @retval -RZI_ERR_ISR Called from an ISR.
  * @retval -RZI_ERR_IO Backend stop failed.
  * @note Thread context only. Waits for callbacks, which must return.
- * @since 0.5
  */
 __must_check int rzi_lorawan_stop(void);
 
@@ -517,7 +510,6 @@ __must_check int rzi_lorawan_stop(void);
  *
  * @return 0 on success, otherwise a negative RZI_ERR_* from stop or release.
  * @note Thread context only; not callable from a LoRaWAN callback.
- * @since 0.5
  */
 __must_check int rzi_lorawan_deinit(void);
 
@@ -533,7 +525,6 @@ __must_check int rzi_lorawan_deinit(void);
  * @retval -RZI_ERR_INVALID state is NULL.
  *
  * @note May be called from any context.
- * @since 0.5
  */
 __must_check int rzi_lorawan_get_state(enum rzi_lorawan_state *state);
 
@@ -641,7 +632,6 @@ __must_check int rzi_lorawan_clear_settings(void);
  * @retval -RZI_ERR_IO Stored credentials could not be loaded.
  *
  * @note Thread context only.
- * @since 0.4
  */
 __must_check int rzi_lorawan_get_dev_eui(uint8_t *eui, size_t len);
 
@@ -658,7 +648,6 @@ __must_check int rzi_lorawan_get_dev_eui(uint8_t *eui, size_t len);
  * @retval -RZI_ERR_IO The identifier could not be persisted.
  *
  * @note Thread context only. The value is applied on the next join.
- * @since 0.4
  */
 __must_check int rzi_lorawan_set_dev_eui(const uint8_t *eui, size_t len);
 
@@ -677,7 +666,6 @@ __must_check int rzi_lorawan_set_dev_eui(const uint8_t *eui, size_t len);
  * @retval -RZI_ERR_IO Stored credentials could not be loaded.
  *
  * @note Thread context only.
- * @since 0.4
  */
 __must_check int rzi_lorawan_get_app_eui(uint8_t *eui, size_t len);
 
@@ -696,7 +684,6 @@ __must_check int rzi_lorawan_get_app_eui(uint8_t *eui, size_t len);
  * @retval -RZI_ERR_IO The identifier could not be persisted.
  *
  * @note Thread context only. The value is applied on the next join.
- * @since 0.4
  */
 __must_check int rzi_lorawan_set_app_eui(const uint8_t *eui, size_t len);
 
@@ -713,7 +700,6 @@ __must_check int rzi_lorawan_set_app_eui(const uint8_t *eui, size_t len);
  * @retval -RZI_ERR_IO Stored credentials could not be loaded.
  *
  * @note Thread context only.
- * @since 0.4
  */
 __must_check int rzi_lorawan_get_app_key(uint8_t *key, size_t len);
 
@@ -733,7 +719,6 @@ __must_check int rzi_lorawan_get_app_key(uint8_t *key, size_t len);
  * @retval -RZI_ERR_IO The key could not be persisted.
  *
  * @note Thread context only. The value is applied on the next join.
- * @since 0.4
  */
 __must_check int rzi_lorawan_set_app_key(const uint8_t *key, size_t len);
 
@@ -750,7 +735,6 @@ __must_check int rzi_lorawan_set_app_key(const uint8_t *key, size_t len);
  * @retval -RZI_ERR_IO Stored credentials could not be loaded.
  *
  * @note Thread context only.
- * @since 0.4
  */
 __must_check int rzi_lorawan_get_gen_app_key(uint8_t *key, size_t len);
 
@@ -770,7 +754,6 @@ __must_check int rzi_lorawan_get_gen_app_key(uint8_t *key, size_t len);
  * @retval -RZI_ERR_IO The key could not be persisted.
  *
  * @note Thread context only. The value is applied on the next join.
- * @since 0.4
  */
 __must_check int rzi_lorawan_set_gen_app_key(const uint8_t *key, size_t len);
 
@@ -790,7 +773,6 @@ __must_check int rzi_lorawan_set_gen_app_key(const uint8_t *key, size_t len);
  * @retval -RZI_ERR_IO The stack read failed, or stored credentials could not be loaded.
  *
  * @note Thread context only.
- * @since 0.4
  */
 __must_check int rzi_lorawan_get_dev_addr(uint32_t *dev_addr);
 
@@ -805,7 +787,6 @@ __must_check int rzi_lorawan_get_dev_addr(uint32_t *dev_addr);
  * @retval -RZI_ERR_IO The address could not be persisted.
  *
  * @note Thread context only. The value is applied on the next ABP join.
- * @since 0.4
  */
 __must_check int rzi_lorawan_set_dev_addr(uint32_t dev_addr);
 
@@ -826,7 +807,6 @@ __must_check int rzi_lorawan_set_dev_addr(uint32_t dev_addr);
  * @retval -RZI_ERR_IO The stack read failed, or stored credentials could not be loaded.
  *
  * @note Thread context only.
- * @since 0.4
  */
 __must_check int rzi_lorawan_get_nwk_skey(uint8_t *key, size_t len);
 
@@ -843,7 +823,6 @@ __must_check int rzi_lorawan_get_nwk_skey(uint8_t *key, size_t len);
  * @retval -RZI_ERR_IO The key could not be persisted.
  *
  * @note Thread context only. The value is applied on the next ABP join.
- * @since 0.4
  */
 __must_check int rzi_lorawan_set_nwk_skey(const uint8_t *key, size_t len);
 
@@ -864,7 +843,6 @@ __must_check int rzi_lorawan_set_nwk_skey(const uint8_t *key, size_t len);
  * @retval -RZI_ERR_IO The stack read failed, or stored credentials could not be loaded.
  *
  * @note Thread context only.
- * @since 0.4
  */
 __must_check int rzi_lorawan_get_app_skey(uint8_t *key, size_t len);
 
@@ -881,7 +859,6 @@ __must_check int rzi_lorawan_get_app_skey(uint8_t *key, size_t len);
  * @retval -RZI_ERR_IO The key could not be persisted.
  *
  * @note Thread context only. The value is applied on the next ABP join.
- * @since 0.4
  */
 __must_check int rzi_lorawan_set_app_skey(const uint8_t *key, size_t len);
 
@@ -902,7 +879,6 @@ __must_check int rzi_lorawan_set_app_skey(const uint8_t *key, size_t len);
  * @retval -RZI_ERR_IO Stored credentials could not be loaded.
  *
  * @note Thread context only.
- * @since 0.4
  */
 __must_check int rzi_lorawan_get_activation(enum rzi_lorawan_activation *mode);
 
@@ -920,7 +896,6 @@ __must_check int rzi_lorawan_get_activation(enum rzi_lorawan_activation *mode);
  *
  * @note Thread context only. Every current backend accepts OTAA and ABP.
  *       A backend can still reject ABP with -RZI_ERR_NOT_SUPPORTED.
- * @since 0.4
  */
 __must_check int rzi_lorawan_set_activation(enum rzi_lorawan_activation mode);
 
@@ -936,7 +911,6 @@ __must_check int rzi_lorawan_set_activation(enum rzi_lorawan_activation mode);
  *
  * @note Thread context only. A stored automatic join does not start the
  *       service and does not join by itself.
- * @since 0.4
  */
 __must_check int rzi_lorawan_get_auto_join(bool *enabled);
 
@@ -951,7 +925,6 @@ __must_check int rzi_lorawan_get_auto_join(bool *enabled);
  * @retval -RZI_ERR_IO Stored join settings could not be loaded.
  *
  * @note Thread context only.
- * @since 0.4
  */
 __must_check int rzi_lorawan_get_join_interval(uint8_t *interval_s);
 
@@ -967,7 +940,6 @@ __must_check int rzi_lorawan_get_join_interval(uint8_t *interval_s);
  * @retval -RZI_ERR_IO Stored join settings could not be loaded.
  *
  * @note Thread context only.
- * @since 0.4
  */
 __must_check int rzi_lorawan_get_join_attempts(uint8_t *attempts);
 
@@ -993,7 +965,6 @@ __must_check int rzi_lorawan_get_join_attempts(uint8_t *attempts);
  *
  * @note Thread context only. May be called before, during, or after joining
  *       once RZI_LORAWAN_EVENT_READY has been received.
- * @since 0.4
  */
 __must_check int rzi_lorawan_get_join_backoff(uint32_t *remaining_s);
 
@@ -1035,7 +1006,6 @@ __must_check int rzi_lorawan_get_join_backoff(uint32_t *remaining_s);
  *
  * @pre For `start` of 1, on_event() has reported RZI_LORAWAN_EVENT_READY.
  * @note Thread context only.
- * @since 0.4
  */
 __must_check int rzi_lorawan_join(int32_t start, int32_t auto_join, int32_t interval,
 				  int32_t attempts);
@@ -1058,7 +1028,6 @@ __must_check int rzi_lorawan_join(int32_t start, int32_t auto_join, int32_t inte
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.2
  */
 __must_check int rzi_lorawan_leave(void);
 
@@ -1085,7 +1054,6 @@ __must_check int rzi_lorawan_leave(void);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only. The backend copies data before returning.
- * @since 0.2
  */
 __must_check int rzi_lorawan_send(uint8_t port, const uint8_t *data, size_t size,
 				  enum rzi_lorawan_message_type type);
@@ -1108,7 +1076,6 @@ __must_check int rzi_lorawan_send(uint8_t port, const uint8_t *data, size_t size
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_get_link_check_mode(enum rzi_lorawan_link_check_mode *mode);
 
@@ -1129,7 +1096,6 @@ __must_check int rzi_lorawan_get_link_check_mode(enum rzi_lorawan_link_check_mod
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_request_link_check(enum rzi_lorawan_link_check_mode mode);
 
@@ -1145,7 +1111,6 @@ __must_check int rzi_lorawan_request_link_check(enum rzi_lorawan_link_check_mode
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_get_device_time_enabled(bool *enabled);
 
@@ -1162,7 +1127,6 @@ __must_check int rzi_lorawan_get_device_time_enabled(bool *enabled);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_request_device_time(bool enabled);
 
@@ -1178,7 +1142,6 @@ __must_check int rzi_lorawan_request_device_time(bool enabled);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_get_network_time(struct rzi_lorawan_network_time *time);
 
@@ -1202,7 +1165,6 @@ __must_check int rzi_lorawan_get_network_time(struct rzi_lorawan_network_time *t
  *
  * @note Thread context only. Class A is passed to the backend directly.
  *       Class B and Class C require the matching capability bit.
- * @since 0.2
  */
 __must_check int rzi_lorawan_set_class(enum rzi_lorawan_class device_class);
 
@@ -1218,7 +1180,6 @@ __must_check int rzi_lorawan_set_class(enum rzi_lorawan_class device_class);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.2
  */
 __must_check int rzi_lorawan_is_joined(bool *joined);
 
@@ -1226,7 +1187,6 @@ __must_check int rzi_lorawan_is_joined(bool *joined);
  * @brief Return the optional packages compiled into the selected backend.
  *
  * @return Bitwise OR of values from enum rzi_lorawan_capability.
- * @since 0.2
  */
 uint32_t rzi_lorawan_get_capabilities(void);
 
@@ -1246,7 +1206,6 @@ uint32_t rzi_lorawan_get_capabilities(void);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only. May be called before @ref rzi_lorawan_init.
- * @since 0.3
  */
 __must_check int rzi_lorawan_get_region(enum rzi_lorawan_region *region);
 
@@ -1261,7 +1220,6 @@ __must_check int rzi_lorawan_get_region(enum rzi_lorawan_region *region);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_get_class(enum rzi_lorawan_class *device_class);
 
@@ -1277,7 +1235,6 @@ __must_check int rzi_lorawan_get_class(enum rzi_lorawan_class *device_class);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_get_adr(bool *enabled);
 
@@ -1292,7 +1249,6 @@ __must_check int rzi_lorawan_get_adr(bool *enabled);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_set_adr(bool enabled);
 
@@ -1308,7 +1264,6 @@ __must_check int rzi_lorawan_set_adr(bool enabled);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_get_data_rate(enum rzi_lorawan_data_rate *data_rate);
 
@@ -1324,7 +1279,6 @@ __must_check int rzi_lorawan_get_data_rate(enum rzi_lorawan_data_rate *data_rate
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_set_data_rate(enum rzi_lorawan_data_rate data_rate);
 
@@ -1343,7 +1297,6 @@ __must_check int rzi_lorawan_set_data_rate(enum rzi_lorawan_data_rate data_rate)
  * @note Reserved for RUI3 compatibility. Every current backend returns
  *       -RZI_ERR_NOT_SUPPORTED: LoRa Basics Modem takes this parameter from
  *       the regional parameters and network MAC commands.
- * @since 0.3
  */
 __must_check int rzi_lorawan_get_tx_power(uint8_t *tx_power);
 
@@ -1362,7 +1315,6 @@ __must_check int rzi_lorawan_get_tx_power(uint8_t *tx_power);
  * @note Reserved for RUI3 compatibility. Every current backend returns
  *       -RZI_ERR_NOT_SUPPORTED: LoRa Basics Modem takes this parameter from
  *       the regional parameters and network MAC commands.
- * @since 0.3
  */
 __must_check int rzi_lorawan_set_tx_power(uint8_t tx_power);
 
@@ -1380,7 +1332,6 @@ __must_check int rzi_lorawan_set_tx_power(uint8_t tx_power);
  * @note Thread context only. USP reads the modem state. A temporary internal
  *       suspension, such as during certification, is reported as disabled.
  *       Zephyr returns -RZI_ERR_NOT_SUPPORTED.
- * @since 0.3
  */
 __must_check int rzi_lorawan_get_duty_cycle(bool *enabled);
 
@@ -1399,7 +1350,6 @@ __must_check int rzi_lorawan_get_duty_cycle(bool *enabled);
  * @note Thread context only. USP can disable the limit before bands exist.
  *       Enabling waits until the regional bands are configured. Zephyr returns
  *       -RZI_ERR_NOT_SUPPORTED.
- * @since 0.3
  */
 __must_check int rzi_lorawan_set_duty_cycle(bool enabled);
 
@@ -1418,7 +1368,6 @@ __must_check int rzi_lorawan_set_duty_cycle(bool enabled);
  * @note Reserved for RUI3 compatibility. Every current backend returns
  *       -RZI_ERR_NOT_SUPPORTED: LoRa Basics Modem takes this parameter from
  *       the regional parameters and network MAC commands.
- * @since 0.3
  */
 __must_check int rzi_lorawan_get_rx1_delay(uint32_t *delay_ms);
 
@@ -1437,7 +1386,6 @@ __must_check int rzi_lorawan_get_rx1_delay(uint32_t *delay_ms);
  * @note Reserved for RUI3 compatibility. Every current backend returns
  *       -RZI_ERR_NOT_SUPPORTED: LoRa Basics Modem takes this parameter from
  *       the regional parameters and network MAC commands.
- * @since 0.3
  */
 __must_check int rzi_lorawan_set_rx1_delay(uint32_t delay_ms);
 
@@ -1456,7 +1404,6 @@ __must_check int rzi_lorawan_set_rx1_delay(uint32_t delay_ms);
  * @note Reserved for RUI3 compatibility. Every current backend returns
  *       -RZI_ERR_NOT_SUPPORTED: LoRa Basics Modem takes this parameter from
  *       the regional parameters and network MAC commands.
- * @since 0.3
  */
 __must_check int rzi_lorawan_get_rx2_delay(uint32_t *delay_ms);
 
@@ -1475,7 +1422,6 @@ __must_check int rzi_lorawan_get_rx2_delay(uint32_t *delay_ms);
  * @note Reserved for RUI3 compatibility. Every current backend returns
  *       -RZI_ERR_NOT_SUPPORTED: LoRa Basics Modem takes this parameter from
  *       the regional parameters and network MAC commands.
- * @since 0.3
  */
 __must_check int rzi_lorawan_set_rx2_delay(uint32_t delay_ms);
 
@@ -1494,7 +1440,6 @@ __must_check int rzi_lorawan_set_rx2_delay(uint32_t delay_ms);
  * @note Reserved for RUI3 compatibility. Every current backend returns
  *       -RZI_ERR_NOT_SUPPORTED: LoRa Basics Modem takes this parameter from
  *       the regional parameters and network MAC commands.
- * @since 0.3
  */
 __must_check int rzi_lorawan_get_rx2_data_rate(enum rzi_lorawan_data_rate *data_rate);
 
@@ -1510,7 +1455,6 @@ __must_check int rzi_lorawan_get_rx2_data_rate(enum rzi_lorawan_data_rate *data_
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_set_rx2_data_rate(enum rzi_lorawan_data_rate data_rate);
 
@@ -1529,7 +1473,6 @@ __must_check int rzi_lorawan_set_rx2_data_rate(enum rzi_lorawan_data_rate data_r
  * @note Reserved for RUI3 compatibility. Every current backend returns
  *       -RZI_ERR_NOT_SUPPORTED: LoRa Basics Modem takes this parameter from
  *       the regional parameters and network MAC commands.
- * @since 0.3
  */
 __must_check int rzi_lorawan_get_rx2_frequency(uint32_t *frequency_hz);
 
@@ -1548,7 +1491,6 @@ __must_check int rzi_lorawan_get_rx2_frequency(uint32_t *frequency_hz);
  * @note Reserved for RUI3 compatibility. Every current backend returns
  *       -RZI_ERR_NOT_SUPPORTED: LoRa Basics Modem takes this parameter from
  *       the regional parameters and network MAC commands.
- * @since 0.3
  */
 __must_check int rzi_lorawan_set_rx2_frequency(uint32_t frequency_hz);
 
@@ -1567,7 +1509,6 @@ __must_check int rzi_lorawan_set_rx2_frequency(uint32_t frequency_hz);
  * @note Reserved for RUI3 compatibility. Every current backend returns
  *       -RZI_ERR_NOT_SUPPORTED: LoRa Basics Modem takes this parameter from
  *       the regional parameters and network MAC commands.
- * @since 0.3
  */
 __must_check int rzi_lorawan_get_join_accept_delay1(uint32_t *delay_ms);
 
@@ -1586,7 +1527,6 @@ __must_check int rzi_lorawan_get_join_accept_delay1(uint32_t *delay_ms);
  * @note Reserved for RUI3 compatibility. Every current backend returns
  *       -RZI_ERR_NOT_SUPPORTED: LoRa Basics Modem takes this parameter from
  *       the regional parameters and network MAC commands.
- * @since 0.3
  */
 __must_check int rzi_lorawan_set_join_accept_delay1(uint32_t delay_ms);
 
@@ -1605,7 +1545,6 @@ __must_check int rzi_lorawan_set_join_accept_delay1(uint32_t delay_ms);
  * @note Reserved for RUI3 compatibility. Every current backend returns
  *       -RZI_ERR_NOT_SUPPORTED: LoRa Basics Modem takes this parameter from
  *       the regional parameters and network MAC commands.
- * @since 0.3
  */
 __must_check int rzi_lorawan_get_join_accept_delay2(uint32_t *delay_ms);
 
@@ -1624,7 +1563,6 @@ __must_check int rzi_lorawan_get_join_accept_delay2(uint32_t *delay_ms);
  * @note Reserved for RUI3 compatibility. Every current backend returns
  *       -RZI_ERR_NOT_SUPPORTED: LoRa Basics Modem takes this parameter from
  *       the regional parameters and network MAC commands.
- * @since 0.3
  */
 __must_check int rzi_lorawan_set_join_accept_delay2(uint32_t delay_ms);
 
@@ -1640,7 +1578,6 @@ __must_check int rzi_lorawan_set_join_accept_delay2(uint32_t delay_ms);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_get_public_network(bool *enabled);
 
@@ -1655,7 +1592,6 @@ __must_check int rzi_lorawan_get_public_network(bool *enabled);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_set_public_network(bool enabled);
 
@@ -1671,7 +1607,6 @@ __must_check int rzi_lorawan_set_public_network(bool enabled);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_get_lbt(bool *enabled);
 
@@ -1686,7 +1621,6 @@ __must_check int rzi_lorawan_get_lbt(bool *enabled);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_set_lbt(bool enabled);
 
@@ -1702,7 +1636,6 @@ __must_check int rzi_lorawan_set_lbt(bool enabled);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_get_lbt_rssi(int16_t *rssi_dbm);
 
@@ -1717,7 +1650,6 @@ __must_check int rzi_lorawan_get_lbt_rssi(int16_t *rssi_dbm);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_set_lbt_rssi(int16_t rssi_dbm);
 
@@ -1733,7 +1665,6 @@ __must_check int rzi_lorawan_set_lbt_rssi(int16_t rssi_dbm);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_get_lbt_scan_time(uint32_t *time_ms);
 
@@ -1749,7 +1680,6 @@ __must_check int rzi_lorawan_get_lbt_scan_time(uint32_t *time_ms);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_set_lbt_scan_time(uint32_t time_ms);
 
@@ -1804,7 +1734,6 @@ struct rzi_lorawan_csma_params {
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.4
  */
 __must_check int rzi_lorawan_get_adr_profile(enum rzi_lorawan_adr_profile *profile);
 
@@ -1827,7 +1756,6 @@ __must_check int rzi_lorawan_get_adr_profile(enum rzi_lorawan_adr_profile *profi
  * @note Thread context only. rzi_lorawan_set_adr() and
  *       rzi_lorawan_set_data_rate() select the network profile and a custom
  *       profile pinned to one data rate respectively.
- * @since 0.4
  */
 __must_check int rzi_lorawan_set_adr_profile(enum rzi_lorawan_adr_profile profile,
 					     const uint8_t *distribution);
@@ -1844,7 +1772,6 @@ __must_check int rzi_lorawan_set_adr_profile(enum rzi_lorawan_adr_profile profil
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.4
  */
 __must_check int rzi_lorawan_get_nb_trans(uint8_t *nb_trans);
 
@@ -1862,7 +1789,6 @@ __must_check int rzi_lorawan_get_nb_trans(uint8_t *nb_trans);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.4
  */
 __must_check int rzi_lorawan_set_nb_trans(uint8_t nb_trans);
 
@@ -1879,7 +1805,6 @@ __must_check int rzi_lorawan_set_nb_trans(uint8_t nb_trans);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.4
  */
 __must_check int rzi_lorawan_get_adr_ack(uint8_t *limit, uint8_t *delay);
 
@@ -1896,7 +1821,6 @@ __must_check int rzi_lorawan_get_adr_ack(uint8_t *limit, uint8_t *delay);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.4
  */
 __must_check int rzi_lorawan_set_adr_ack(uint8_t limit, uint8_t delay);
 
@@ -1914,7 +1838,6 @@ __must_check int rzi_lorawan_set_adr_ack(uint8_t limit, uint8_t delay);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.4
  */
 __must_check int rzi_lorawan_set_join_data_rates(const uint8_t *distribution);
 
@@ -1931,7 +1854,6 @@ __must_check int rzi_lorawan_set_join_data_rates(const uint8_t *distribution);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only. RZI_LORAWAN_EVENT_REGIONAL_DUTY_CYCLE reports changes.
- * @since 0.4
  */
 __must_check int rzi_lorawan_get_duty_cycle_status(int32_t *time_ms);
 
@@ -1947,7 +1869,6 @@ __must_check int rzi_lorawan_get_duty_cycle_status(int32_t *time_ms);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.4
  */
 __must_check int rzi_lorawan_get_csma(bool *enabled);
 
@@ -1962,7 +1883,6 @@ __must_check int rzi_lorawan_get_csma(bool *enabled);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.4
  */
 __must_check int rzi_lorawan_set_csma(bool enabled);
 
@@ -1978,7 +1898,6 @@ __must_check int rzi_lorawan_set_csma(bool enabled);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.4
  */
 __must_check int rzi_lorawan_get_csma_params(struct rzi_lorawan_csma_params *params);
 
@@ -1994,7 +1913,6 @@ __must_check int rzi_lorawan_get_csma_params(struct rzi_lorawan_csma_params *par
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.4
  */
 __must_check int rzi_lorawan_set_csma_params(const struct rzi_lorawan_csma_params *params);
 
@@ -2010,7 +1928,6 @@ __must_check int rzi_lorawan_set_csma_params(const struct rzi_lorawan_csma_param
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.4
  */
 __must_check int rzi_lorawan_get_lost_connection_count(uint16_t *count);
 
@@ -2028,7 +1945,6 @@ __must_check int rzi_lorawan_get_lost_connection_count(uint16_t *count);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.4
  */
 __must_check int rzi_lorawan_get_no_downlink_threshold(uint16_t *uplinks);
 
@@ -2045,7 +1961,6 @@ __must_check int rzi_lorawan_get_no_downlink_threshold(uint16_t *uplinks);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.4
  */
 __must_check int rzi_lorawan_set_no_downlink_threshold(uint16_t uplinks);
 
@@ -2061,7 +1976,6 @@ __must_check int rzi_lorawan_set_no_downlink_threshold(uint16_t uplinks);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.4
  */
 __must_check int rzi_lorawan_get_crystal_error(uint32_t *ppm);
 
@@ -2076,7 +1990,6 @@ __must_check int rzi_lorawan_get_crystal_error(uint32_t *ppm);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.4
  */
 __must_check int rzi_lorawan_set_crystal_error(uint32_t ppm);
 
@@ -2099,7 +2012,6 @@ __must_check int rzi_lorawan_set_crystal_error(uint32_t ppm);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.4
  */
 __must_check int rzi_lorawan_send_empty(bool with_port, uint8_t port,
 					enum rzi_lorawan_message_type type);
@@ -2129,7 +2041,6 @@ __must_check int rzi_lorawan_send_empty(bool with_port, uint8_t port,
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only. Works before @ref rzi_lorawan_init.
- * @since 0.3
  */
 __must_check int rzi_lorawan_get_channel_mask(uint16_t *mask, size_t words);
 
@@ -2149,7 +2060,6 @@ __must_check int rzi_lorawan_get_channel_mask(uint16_t *mask, size_t words);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only. Works before @ref rzi_lorawan_init.
- * @since 0.3
  */
 __must_check int rzi_lorawan_set_channel_mask(const uint16_t *mask, size_t words);
 
@@ -2165,7 +2075,6 @@ __must_check int rzi_lorawan_set_channel_mask(const uint16_t *mask, size_t words
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_get_sub_band(uint8_t *sub_band);
 
@@ -2185,7 +2094,6 @@ __must_check int rzi_lorawan_get_sub_band(uint8_t *sub_band);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_set_sub_band(uint8_t sub_band);
 
@@ -2201,7 +2109,6 @@ __must_check int rzi_lorawan_set_sub_band(uint8_t sub_band);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_get_fixed_channel(uint32_t *frequency_hz);
 
@@ -2220,7 +2127,6 @@ __must_check int rzi_lorawan_get_fixed_channel(uint32_t *frequency_hz);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_set_fixed_channel(uint32_t frequency_hz);
 
@@ -2241,7 +2147,6 @@ __must_check int rzi_lorawan_set_fixed_channel(uint32_t frequency_hz);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_get_last_rssi(int16_t *rssi_dbm);
 
@@ -2256,7 +2161,6 @@ __must_check int rzi_lorawan_get_last_rssi(int16_t *rssi_dbm);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_get_last_snr(int8_t *snr_quarter_db);
 
@@ -2277,7 +2181,6 @@ __must_check int rzi_lorawan_get_last_snr(int8_t *snr_quarter_db);
  *
  * @note Thread context only. Initialization is not required. After success,
  *       the pointer remains valid for the process lifetime.
- * @since 0.3
  */
 __must_check int rzi_lorawan_get_protocol_version(const char **version);
 
@@ -2290,7 +2193,6 @@ __must_check int rzi_lorawan_get_protocol_version(const char **version);
  * @retval -RZI_ERR_NO_DATA No active NetID or configured fallback is available.
  * @retval -RZI_ERR_ISR Called from an ISR.
  * @note Thread context only. Works before initialization. Storage errors propagate.
- * @since 0.3
  */
 __must_check int rzi_lorawan_get_net_id(uint32_t *net_id);
 
@@ -2306,7 +2208,6 @@ __must_check int rzi_lorawan_get_net_id(uint32_t *net_id);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_get_dev_nonce(uint16_t *dev_nonce);
 
@@ -2321,7 +2222,6 @@ __must_check int rzi_lorawan_get_dev_nonce(uint16_t *dev_nonce);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_set_dev_nonce(uint16_t dev_nonce);
 
@@ -2337,7 +2237,6 @@ __must_check int rzi_lorawan_set_dev_nonce(uint16_t dev_nonce);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_query_tx_possible(size_t size);
 
@@ -2351,7 +2250,6 @@ __must_check int rzi_lorawan_query_tx_possible(size_t size);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_is_busy(bool *busy);
 
@@ -2373,7 +2271,6 @@ __must_check int rzi_lorawan_is_busy(bool *busy);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_get_ping_slot_periodicity(uint8_t *periodicity);
 
@@ -2389,7 +2286,6 @@ __must_check int rzi_lorawan_get_ping_slot_periodicity(uint8_t *periodicity);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_set_ping_slot_periodicity(uint8_t periodicity);
 
@@ -2405,7 +2301,6 @@ __must_check int rzi_lorawan_set_ping_slot_periodicity(uint8_t periodicity);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_get_beacon_frequency(uint32_t *frequency_hz);
 
@@ -2422,7 +2317,6 @@ __must_check int rzi_lorawan_get_beacon_frequency(uint32_t *frequency_hz);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_get_beacon_time(uint32_t *gps_time);
 
@@ -2438,7 +2332,6 @@ __must_check int rzi_lorawan_get_beacon_time(uint32_t *gps_time);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_get_beacon_data_rate(enum rzi_lorawan_data_rate *data_rate);
 
@@ -2455,7 +2348,6 @@ __must_check int rzi_lorawan_get_beacon_data_rate(enum rzi_lorawan_data_rate *da
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_get_beacon_gateway(struct rzi_lorawan_beacon_gateway *gateway);
 
@@ -2471,7 +2363,6 @@ __must_check int rzi_lorawan_get_beacon_gateway(struct rzi_lorawan_beacon_gatewa
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_get_class_b_state(enum rzi_lorawan_class_b_state *state);
 
@@ -2484,7 +2375,6 @@ __must_check int rzi_lorawan_get_class_b_state(enum rzi_lorawan_class_b_state *s
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.3
  */
 __must_check int rzi_lorawan_stop_class_b(void);
 

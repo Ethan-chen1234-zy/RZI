@@ -44,8 +44,8 @@ version:
 /**
  * @defgroup rzi_service RZI service API
  * @brief One-line service purpose.
- * @since 0.2
- * @version 0.2.0
+ * @since 0.1.0
+ * @version 0.1.0
  * @{
  */
 ```
@@ -103,7 +103,6 @@ Example:
  * @retval -RZI_ERR_NOT_SUPPORTED Activation mode unsupported.
  *
  * @note Thread context only; this function must not be called from an ISR.
- * @since 0.4
  */
 __must_check int rzi_lorawan_join(int32_t start, int32_t auto_join,
 				  int32_t interval, int32_t attempts);
@@ -130,10 +129,14 @@ Callbacks must state:
 
 ## 5. Versioning and deprecation
 
-- New public groups must have `@since`. Group members inherit that version
-  by default;
-- Types or functions added in a later version must have their own `@since`;
-- Groups use `@version` for the current semantic version of that API set;
+- New public groups must have `@since` and `@version`. Group members inherit
+  that `@since` and do not repeat it;
+- `@since` is the release that introduced the group. It stays put.
+  `@version` is that group's current contract version and changes when the
+  contract changes. `RZI_VERSION_STRING` is the SDK release reported by AT,
+  tags, and SBOMs. Before the first release all three are `0.1.0`;
+- After that release, a type or function added in a later version has its
+  own `@since`. A group changes `@version` when its contract changes;
 - Deprecated APIs use both Doxygen `@deprecated` and compiler
   `__deprecated`;
 - `@deprecated` must name the replacement and the major version that will

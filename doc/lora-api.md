@@ -3,7 +3,7 @@
 Status: implemented
 
 Public C contract for P2P LoRa, P2P FSK, and radio certification tests.
-The ABI is `include/rzi/lora/lora.h` (group 0.5.0).
+The ABI is `include/rzi/lora/lora.h` (group 0.1.0).
 
 See also: [error-codes.md](./error-codes.md),
 [at-command-compatibility.md](./at-command-compatibility.md),

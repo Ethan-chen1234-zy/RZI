@@ -14,8 +14,8 @@ extern "C" {
 /**
  * @defgroup rzi_err RZI error codes
  * @brief Closed failure codes returned by public RZI APIs.
- * @since 0.4
- * @version 0.4.0
+ * @since 0.1.0
+ * @version 0.1.0
  * @{
  */
 
@@ -78,7 +78,6 @@ enum rzi_err {
  * @param err Success or error value.
  *
  * @return Static NUL-terminated name, or `"RZI_ERR_UNKNOWN"`.
- * @since 0.4
  */
 const char *rzi_err_str(int err);
 
@@ -100,7 +99,6 @@ const char *rzi_err_str(int err);
  * @param rc Vendor or POSIX return value, or an already mapped RZI error.
  *
  * @return `0` or a negative @ref rzi_err value.
- * @since 0.4
  */
 int rzi_err_from_errno(int rc);
 

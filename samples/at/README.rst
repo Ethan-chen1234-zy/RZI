@@ -115,7 +115,7 @@ value as ``AT+VER``:
 
 .. code-block:: text
 
-   +EVT:BOOT:RZI_0.2.0_rak3362
+   +EVT:BOOT:RZI_0.1.0_rak3362
 
 For RAK3372, use ``-b rak3172/stm32wle5xx/rzi``. The AT port is lpuart1
 (PA2/PA3). This sample turns the console off.
@@ -133,7 +133,7 @@ type:
    AT
    OK
    AT+VER=?
-   AT+VER=RZI_0.2.0_rak4631
+   AT+VER=RZI_0.1.0_rak4631
    OK
    AT+DEVEUI=0011223344556677
    OK

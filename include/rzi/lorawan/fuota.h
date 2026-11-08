@@ -25,8 +25,8 @@ extern "C" {
  *  remain inside the selected backend. This service owns session state,
  *  image access, optional MCUboot installation and reboot.
  *
- *  @since 0.2
- *  @version 0.4.0
+ *  @since 0.1.0
+ *  @version 0.1.0
  *  @{
  */
 
@@ -64,7 +64,6 @@ struct rzi_fuota_status {
  * Callbacks execute in the LoRaWAN dispatcher thread. They must return
  * promptly and must not call @ref rzi_fuota_apply.
  *
- * @since 0.2
  */
 struct rzi_fuota_callbacks {
 	/** Called after every observable state transition. */
@@ -90,7 +89,6 @@ struct rzi_fuota_callbacks {
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.2
  */
 __must_check int rzi_fuota_register_callbacks(const struct rzi_fuota_callbacks *callbacks);
 
@@ -106,7 +104,6 @@ __must_check int rzi_fuota_register_callbacks(const struct rzi_fuota_callbacks *
  *
  * @note Thread context only. rzi_lorawan_init() initializes this service when
  *       CONFIG_RZI_LORAWAN_FUOTA is enabled.
- * @since 0.2
  */
 __must_check int rzi_fuota_init(void);
 
@@ -120,7 +117,6 @@ __must_check int rzi_fuota_init(void);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.2
  */
 __must_check int rzi_fuota_get_status(struct rzi_fuota_status *status);
 
@@ -138,7 +134,6 @@ __must_check int rzi_fuota_get_status(struct rzi_fuota_status *status);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.2
  */
 __must_check int rzi_fuota_set_expected_size(size_t size);
 
@@ -156,7 +151,6 @@ __must_check int rzi_fuota_set_expected_size(size_t size);
  * @retval -RZI_ERR_ISR Called from an ISR.
  *
  * @note Thread context only.
- * @since 0.2
  */
 __must_check int rzi_fuota_read_image(size_t offset, void *buffer, size_t size);
 
@@ -175,7 +169,6 @@ __must_check int rzi_fuota_read_image(size_t offset, void *buffer, size_t size);
  *
  * @warning Must not be called from a FUOTA callback.
  * @note Thread context only.
- * @since 0.2
  */
 __must_check int rzi_fuota_apply(void);
 

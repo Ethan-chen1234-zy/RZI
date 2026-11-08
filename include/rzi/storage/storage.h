@@ -19,8 +19,8 @@ extern "C" {
 
 /** @defgroup rzi_storage RZI storage service
  *  @brief Serialized, namespaced storage independent of its physical backend.
- *  @since 0.2
- *  @version 0.4.0
+ *  @since 0.1.0
+ *  @version 0.1.0
  *  @{
  */
 
@@ -33,7 +33,6 @@ extern "C" {
  * @retval -RZI_ERR_ISR Called from an ISR.
  * @retval -RZI_ERR_IO Backend initialization failed.
  * @note Thread context only.
- * @since 0.2
  */
 __must_check int rzi_storage_init(void);
 
@@ -50,7 +49,6 @@ __must_check int rzi_storage_init(void);
  * @retval -RZI_ERR_NOT_FOUND The value does not exist.
  * @retval -RZI_ERR_TOO_LARGE Stored size does not match, or the backend key is too long.
  * @note Thread context only.
- * @since 0.2
  */
 __must_check int rzi_storage_read(const char *namespace_name, const char *key, void *value,
 				  size_t size);
@@ -68,7 +66,6 @@ __must_check int rzi_storage_read(const char *namespace_name, const char *key, v
  * @retval -RZI_ERR_TOO_LARGE The composed backend key is too long.
  * @retval -RZI_ERR_IO The backend write failed.
  * @note Thread context only.
- * @since 0.2
  */
 __must_check int rzi_storage_write(const char *namespace_name, const char *key, const void *value,
 				   size_t size);
@@ -84,7 +81,6 @@ __must_check int rzi_storage_write(const char *namespace_name, const char *key, 
  * @retval -RZI_ERR_INVALID An argument or path component is invalid.
  * @retval -RZI_ERR_TOO_LARGE The composed backend key is too long.
  * @note Thread context only.
- * @since 0.2
  */
 __must_check int rzi_storage_delete(const char *namespace_name, const char *key);
 

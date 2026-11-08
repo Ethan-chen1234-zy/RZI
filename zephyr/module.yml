@@ -19,5 +19,5 @@ boards:
 # The version must match RZI_VERSION_STRING in include/rzi/version.h.
 security:
   external-references:
-    - cpe:2.3:a:rakwireless:rzi:0.2.0:*:*:*:*:*:*:*
-    - pkg:github/RAKWireless/RZI@v0.2.0
+    - cpe:2.3:a:rakwireless:rzi:0.1.0:*:*:*:*:*:*:*
+    - pkg:github/RAKWireless/RZI@v0.1.0
