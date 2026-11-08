@@ -51,8 +51,7 @@ value returned by an API.
 
 `RZI_ERR_ALREADY` means the requested state or object is already present:
 a second `init`, or a duplicate AT command name. A setting
-changed after `rzi_lorawan_init`, and registration after the AT registry is sealed,
-return `RZI_ERR_INVALID_STATE`. `RZI_ERR_NO_DEVICE` means the hardware
+changed after `rzi_lorawan_init` returns `RZI_ERR_INVALID_STATE`. `RZI_ERR_NO_DEVICE` means the hardware
 device is missing. An adapter or service that is not active returns
 `RZI_ERR_NOT_READY`.
 

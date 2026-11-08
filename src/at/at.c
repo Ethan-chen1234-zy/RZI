@@ -241,7 +241,6 @@ int rzi_at_init(const struct rzi_at_io *io)
 	active_io = *io;
 	rc = rzi_at_builtin_register();
 	if (rc == 0) {
-		rzi_at_registry_seal();
 		rc = rzi_at_registry_init_extensions();
 	}
 	if (rc != 0) {

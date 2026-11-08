@@ -118,12 +118,11 @@ struct rzi_at_io {
  * @param count Number of entries in commands.
  *
  * @retval 0 Commands registered.
- * @retval -RZI_ERR_INVALID_STATE The registry is sealed because the service is initialized.
  * @retval -RZI_ERR_ALREADY A command name is already registered.
  * @retval -RZI_ERR_INVALID The array, count, name, handler, or capacity is invalid.
  *
- * @pre Call before rzi_at_init().
- * @note Thread context only.
+ * @note Thread context only. Register before the AT thread is running. The
+ *       command table is not locked.
  * @since 0.2
  */
 __must_check int rzi_at_register(const struct rzi_at_command *commands, size_t count);

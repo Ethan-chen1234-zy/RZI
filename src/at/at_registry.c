@@ -16,7 +16,6 @@ static const struct rzi_at_command *registered[CONFIG_RZI_AT_MAX_COMMANDS];
 static const struct rzi_at_extension *extensions[CONFIG_RZI_AT_MAX_EXTENSIONS];
 static size_t command_count;
 static size_t extension_count;
-static bool sealed;
 
 static bool valid_name(const char *name)
 {
@@ -33,9 +32,6 @@ static bool valid_name(const char *name)
 
 int rzi_at_register(const struct rzi_at_command *commands, size_t count)
 {
-	if (sealed) {
-		return -RZI_ERR_INVALID_STATE;
-	}
 	if ((commands == NULL && count != 0U) || command_count + count > ARRAY_SIZE(registered)) {
 		return -RZI_ERR_INVALID;
 	}
@@ -58,11 +54,6 @@ int rzi_at_register(const struct rzi_at_command *commands, size_t count)
 		registered[command_count++] = &commands[i];
 	}
 	return 0;
-}
-
-void rzi_at_registry_seal(void)
-{
-	sealed = true;
 }
 
 int rzi_at_registry_add_extension(const struct rzi_at_extension *extension)

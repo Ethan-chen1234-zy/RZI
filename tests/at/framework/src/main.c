@@ -149,11 +149,6 @@ ZTEST(rzi_at_framework, test_operation_validation)
 	zassert_not_null(strstr(output, "\r\nAT_ERROR\r\n"));
 }
 
-ZTEST(rzi_at_framework, test_registry_is_immutable_after_init)
-{
-	zassert_equal(rzi_at_register(&custom_command, 1), -RZI_ERR_INVALID_STATE);
-}
-
 #if defined(CONFIG_PM) && defined(CONFIG_RZI_POWER)
 /* Test states are lockable but are not assigned to a CPU. */
 void pm_state_set(enum pm_state state, uint8_t substate_id)
