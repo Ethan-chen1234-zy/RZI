@@ -16,7 +16,7 @@ runs:
         path: ~/.cache/pip
         # All callers select Python 3.12. Dependencies are pinned by west.yml;
         # separate job keys let compliance and build tools populate their caches.
-        key: pip-v1-${{ runner.os }}-${{ runner.arch }}-py3.12-${{ github.job }}-${{ hashFiles('rzi/west.yml') }}
+        key: pip-v1-${{ runner.os }}-${{ runner.arch }}-py3.12-${{ github.job }}-${{ hashFiles('rzi/west.yml', 'rzi/tools/requirements/*.lock') }}
         restore-keys: |
           pip-v1-${{ runner.os }}-${{ runner.arch }}-py3.12-${{ github.job }}-
 
@@ -24,9 +24,7 @@ runs:
       shell: bash
       run: |
         set -eux
-        if ! python3 -m pip install --upgrade "west==1.5.0"; then
-          python3 -m pip install --upgrade --break-system-packages "west==1.5.0"
-        fi
+        rzi/tools/ci/install-deps.sh bootstrap
         echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
 
     - name: Cache the west workspace
@@ -71,12 +69,14 @@ runs:
         git -C "${GITHUB_WORKSPACE}/manifest" \
           -c user.name=rzi-ci -c user.email=ci@localhost commit -qm "CI manifest"
         cd "${GITHUB_WORKSPACE}"
-        # A cache hit restores usp_zephyr with the previous run's patches
-        # still in the worktree. west update will not discard those edits.
-        if [[ -d modules/usp_zephyr/.git ]]; then
-          git -C modules/usp_zephyr reset --hard
-          git -C modules/usp_zephyr clean -fd
-        fi
+        # Cached dependencies retain the previous run's patches. Discard
+        # those CI-generated edits before west switches pinned revisions.
+        for project in zephyr modules/usp_zephyr modules/lib/usp; do
+          if [[ -d "${project}/.git" ]]; then
+            git -C "${project}" reset --hard
+            git -C "${project}" clean -fd
+          fi
+        done
         west init -l manifest
         # Blobless narrow fetch. clone-depth 1 plus a pinned SHA is rejected
         # by git as an unadvertised object, which fails this step immediately.
