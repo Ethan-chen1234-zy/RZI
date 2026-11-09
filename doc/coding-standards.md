@@ -25,9 +25,7 @@ RZI is a Zephyr module and does not invent a second formatting style:
 - `tools/ci/check-style.sh` runs clang-format, production-library
   `@file` / `@brief` checks, and Zephyr `checkpatch.pl` (100-column width).
 - `tools/ci/check-compliance.sh` runs Zephyr's `check_compliance.py` on a
-  commit range. CI uses that script. Every commit needs a `Signed-off-by`
-  line matching its author. The blocking `Commit policy` job checks DCO,
-  Conventional Commit messages, and the absence of merge/fixup commits.
+  commit range. CI uses that script. CI does not gate commit messages or DCO.
 - `.githooks/commit-msg` runs the same gitlint rules on the message before
   the commit is created. Body lines are at most 75 characters.
   `Signed-off-by`, `Co-authored-by`, and lines that contain a URL are exempt.
@@ -478,17 +476,17 @@ not mix clang-format and logic changes in the same "while we are here"
 commit unless the surface area is tiny.
 
 The subject uses a `type:` or `type(scope):` prefix. The body is required.
-Titles are at most 75 characters. CI accepts `feat`, `fix`, `docs`, `style`,
-`refactor`, `perf`, `test`, `build`, `ci`, `chore`, and `revert` types, with
-an optional scope and breaking-change `!` marker.
+Titles are at most 75 characters. The local commit-msg hook accepts `feat`,
+`fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`,
+and `revert` types, with an optional scope and breaking-change `!` marker.
 Wrap body lines at 75 characters. `.githooks/commit-msg` rejects a longer
 line. Each commit ends with `Signed-off-by: Name <email>`. `git commit -s`
-adds that line from the configured committer. The DCO check rejects a
-commit that lacks it.
+adds that line from the configured committer. The local hook rejects a
+commit whose author line does not match that trailer. CI does not.
 
 PR branches are updated with rebase rather than merge. Merge through
-**Rebase and merge** after the applicable review requirements and a passing
-`CI required` gate. The designated maintainer has a PR-only review exception;
+**Create a merge commit**, **Rebase and merge**, or **Squash and merge** after
+the applicable review requirements and a passing `CI required` gate. The designated maintainer has a PR-only review exception;
 CI still applies. See [CONTRIBUTING.md](../CONTRIBUTING.md) for commands and
 [maintainer-workflow.md](maintainer-workflow.md) for repository protections.
 

@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # RZI continuous integration, aligned with Zephyr's compliance workflow
-# and the example-application twister gate: check_compliance.py, DCO on
-# pull requests, twister --integration, plus REUSE, public-header, Doxygen,
+# and the example-application twister gate: check_compliance.py,
+# twister --integration, plus REUSE, public-header, Doxygen,
 # and SPDX 3 / CycloneDX SBOM checks. Releases: release.yml.
 #
 # Version pins and local reproduction steps are documented in doc/ci.md.
@@ -46,24 +46,7 @@ jobs:
       - name: Validate workflow syntax and expressions
         run: tools/ci/check-workflows.sh
 
-  commits:
-    name: Commit policy
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    steps:
-      - name: Check out the integration result and original commits
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-        with:
-          path: rzi
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Check commit topology, messages, and DCO
-        working-directory: rzi
-        run: python3 tools/ci/check-commits.py --event "$GITHUB_EVENT_PATH"
-
-      - name: Test commit-policy regressions
-        working-directory: rzi
+      - name: Test the CI tooling
         env:
           PYTHONDONTWRITEBYTECODE: '1'
         run: python3 -m unittest discover -s tools/tests -p 'test_*.py' -v
@@ -500,7 +483,7 @@ jobs:
   required:
     name: CI required
     if: always()
-    needs: [workflows, commits, compliance, twister, sample-builds, firmware-sbom, samples, headers, doc, sbom]
+    needs: [workflows, compliance, twister, sample-builds, firmware-sbom, samples, headers, doc, sbom]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:

@@ -18,7 +18,6 @@ def plan(repo, workspace, mode, revision_range, compliance_python):
     west = [python, "-m", "west"]
     checks = [
         ("workflows", ["tools/ci/check-workflows.sh"], repo, False),
-        ("commits", [python, "tools/ci/check-commits.py", revision_range], repo, False),
         (
             "tool-tests",
             [python, "-m", "unittest", "discover", "-s", "tools/tests", "-p", "test_*.py", "-v"],

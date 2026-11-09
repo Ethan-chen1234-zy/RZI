@@ -14,9 +14,9 @@ See also: [contribution guide](../CONTRIBUTING.md), [CI](ci.md),
 
 1. Contributors branch from `main` (or an explicitly supported maintenance
    branch), prepare logical commits, and open a focused PR.
-2. CI checks original PR commits for topology, Conventional Commit messages,
-   explanatory bodies, and DCO. Build and source checks use GitHub's tested
-   merge result. CI does not rebase or push changes to the contributor branch.
+2. CI checks the integration build, compliance, tests, documentation, and
+   SBOMs. Commit messages and DCO sign-offs are not CI gates. CI does not
+   rebase or push changes to the contributor branch.
 3. A maintainer reviews correctness, API and compatibility impact, test
    evidence, attribution, and commit boundaries. Every logical commit should
    build and pass relevant tests; current automation tests the integration
@@ -28,8 +28,8 @@ See also: [contribution guide](../CONTRIBUTING.md), [CI](ci.md),
    exception. All PRs must resolve review threads and pass CI.
 5. Merge only when `CI required` succeeds and the branch satisfies the
    up-to-date rule. Use **Rebase and merge** to retain the reviewed logical
-   commits. Authors squash intermediate corrections before final review;
-   maintainers do not collapse unrelated changes during merge.
+   commits, **Squash and merge** when the PR should land as one commit, or
+   **Create a merge commit**.
 
 Do not push directly to protected branches, force-push their history, or
 override failed checks. Diagnose a failing gate instead of disabling it.
@@ -56,7 +56,7 @@ for example `chore: initialize RZI` with a body and DCO sign-off.
 
 In **Settings > General > Pull Requests**:
 
-- Enable **Allow rebase merging**; disable merge commits and squash merging.
+- Enable **Allow merge commits**, **Allow rebase merging**, and **Allow squash merging**.
 - Enable automatic deletion of merged feature branches.
 - Keep automatic merging disabled until branch protections are active.
 
@@ -65,7 +65,7 @@ confirm enforcement is **Active**:
 
 | File | Effect |
 |---|---|
-| [main.json](../.github/rulesets/main.json) | Protects `main` and `release/**` for everyone: PRs, resolved threads, linear history, no deletion or force push, and required `CI required` from GitHub Actions; no bypass actors |
+| [main.json](../.github/rulesets/main.json) | Protects `main` and `release/**` for everyone: PRs, resolved threads, merge, rebase, or squash, no deletion or force push, and required `CI required` from GitHub Actions; no bypass actors |
 | [reviews.json](../.github/rulesets/reviews.json) | Requires owner approval, dismissal of stale reviews, and latest-push approval; only `@DanielCao0` (user ID `144674500`) can bypass this ruleset when merging a PR |
 | [release-tags.json](../.github/rulesets/release-tags.json) | Allows creation of `v*` tags but blocks subsequent tag changes and deletion |
 
@@ -81,9 +81,9 @@ use an organization team containing only this maintainer in the review
 ruleset; do not grant a blanket administrator exception.
 
 Confirm the expected status source is **GitHub Actions**, not an arbitrary external
-status. Remove superseded legacy required checks, especially the old separate
-`Check DCO sign-off` check: DCO now belongs to `Commit policy`, which is
-included in `CI required`. Leaving a removed check required blocks all PRs.
+status. Remove superseded required checks, including `Check DCO sign-off`
+and `Commit policy`. Neither is produced anymore. The only required status
+is `CI required`. Leaving a removed check required blocks all PRs.
 
 Private organization repositories require a GitHub plan supporting these
 protections. If the organization plan does not expose/enforce them, treat
@@ -127,10 +127,9 @@ must be included in its `needs` list.
 
 External GitHub Actions are pinned to complete commit SHAs with readable
 major-version comments. Dependabot proposes updates; review upstream changes
-and run the complete CI before merging. The commit policy has no implicit
-bot DCO exemption: a maintainer taking authorship of a bot-generated patch
-must review it, record their own certification, and preserve appropriate
-co-author attribution rather than invent someone else's sign-off.
+and run the complete CI before merging. A maintainer taking authorship of a
+bot-generated patch reviews it and keeps the original attribution. CI does
+not compare that authorship with a `Signed-off-by` trailer.
 
 Workflow validation runs a checksum-verified actionlint release. This checks
 workflow syntax and expressions; it is not a replacement for executing jobs.

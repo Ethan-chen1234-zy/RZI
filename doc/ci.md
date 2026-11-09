@@ -5,8 +5,7 @@ Status: implemented
 GitHub Actions gates every push to `main` and every pull request. Compliance
 follows Zephyr's `scripts/ci/check_compliance.py` workflow. Tests and samples
 follow the `example-application` twister invocation (`--integration`).
-Public-header, documentation, and SBOM checks are RZI gates. The commit-policy
-job checks DCO, commit messages, and topology on the original commits.
+Public-header, documentation, and SBOM checks are RZI gates.
 `CI required` aggregates all gates and fails on any failure, cancellation,
 or unexpected skip. Server-side activation is documented in
 [maintainer-workflow.md](./maintainer-workflow.md).
@@ -25,8 +24,7 @@ west workspace and install the Zephyr SDK for the jobs that need them.
 | Job | What it proves |
 |---|---|
 | Compliance | `tools/ci/check-compliance.sh` (Zephyr `check_compliance.py`), `tools/ci/check-style.sh --no-checkpatch` (clang-format, `@file` / `@brief`), no backend symbols in `include/rzi/`, ASCII-only source, `reuse lint`, version strings in sync (`version.h`, `Doxyfile`, `module.yml` CPE / PURL) |
-| Commit policy | Original commits have Conventional Commit titles, explanatory bodies, matching author sign-offs, and no merge/fixup commits; policy regression tests pass |
-| Workflow validation | Checksum-verified actionlint checks workflow syntax and expressions |
+| Workflow validation | Checksum-verified actionlint checks workflow syntax and expressions; CI tooling tests run in this job |
 | CI required | Every validation job explicitly succeeded; the stable required check for branch protection |
 | Twister (native_sim) | `west twister -T rzi/tests --integration` on the host |
 | Samples (shards 1-4) | `west twister -T rzi/samples --integration --subset N/4` with the Zephyr SDK; the four deterministic subsets cover the original integration build set, including RAK4631, RAK3172, RAK3372-F, and RAK3362 |
@@ -58,8 +56,7 @@ merge-queue groups. `workflow_call` supports release validation. PR build
 jobs check out GitHub's synthetic merge result, not just the contributor's
 tip. The compliance range still selects original PR commits for patch-based
 checks. CI never rebases or pushes a PR branch. Merge queues test the exact
-queued integration; their generated merge commits are excluded from the
-author-message and DCO policy, while original commits remain checked.
+queued integration. Commit messages and DCO sign-offs are not CI gates.
 
 External Actions use full commit SHA pins; checkouts do not retain credentials.
 Validation has read-only permissions. No job may pass the aggregate gate
@@ -128,8 +125,9 @@ commit without a parent. `tools/ci/check-commits.py --event <event-json>
 The script loads Zephyr's `.checkpatch.conf`, rewriting the typedefs path to
 the workspace's Zephyr tree. `EXECUTE_PERMISSIONS` is ignored because hook
 and helper scripts must keep the executable bit. The optional local gitlint
-hook ignores rule `UC2`, which requires a two-token name; the blocking RZI
-policy instead matches the author's actual name and email to a DCO trailer.
+hook ignores rule `UC2`, which requires a two-token name. The local
+commit-msg hook matches the author's actual name and email to a DCO trailer.
+CI does not.
 
 These checks are excluded because they validate the Zephyr repository, not a
 module:
@@ -142,10 +140,9 @@ module:
 `tools/ci/check-style.sh` still fails the job when clang-format or a missing
 `@file` / `@brief` is wrong. `LicenseAndCopyrightCheck` produces warnings;
 `reuse lint` is the blocking module license gate. `Gitlint` is excluded from
-compliance because the blocking `Commit policy` job enforces RZI's message
-and DCO rules on original commits. Synthetic integration messages are not
-contributor messages. Every other compliance report fails the job. The
-optional local `commit-msg` hook runs both RZI policy and Zephyr gitlint.
+compliance. Every other compliance report fails the job. The optional local
+`commit-msg` hook runs both RZI message checks and Zephyr gitlint. CI does
+not gate commit messages or DCO sign-offs.
 
 `native_sim` keeps `ZEPHYR_TOOLCHAIN_VARIANT=host`. The SDK install in CI is
 the ARM toolchain the product boards need; the host compiler builds the
@@ -194,7 +191,7 @@ python tools/ci/preflight.py --mode full \
     --compliance-python ../.venv-compliance/bin/python --range origin/main..HEAD
 ```
 
-The quick mode runs actionlint, commit policy, tool tests, style, complete
+The quick mode runs actionlint, tool tests, style, complete
 compliance, source/API/version rules, REUSE, Doxygen, and module SBOM checks.
 Full mode adds every integration sample in one Twister invocation rather
 than CI's four parallel shards. Neither mode installs packages silently.

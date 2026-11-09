@@ -108,15 +108,14 @@ Replace the example paths with your files. `git commit -s` records your
 agreement with the [Developer Certificate of Origin](https://developercertificate.org/).
 It adds a `Signed-off-by` trailer, not a cryptographic signature. Use your
 own configured name and email, and preserve attribution when editing someone
-else's commits. The `Commit policy` CI job enforces messages and author
-sign-offs on every original commit. The optional local commit-message hook
-also runs Zephyr gitlint. See the [maintainer workflow](doc/maintainer-workflow.md)
+else's commits. The optional local commit-message hook checks the message
+and the author sign-off, and also runs Zephyr gitlint. CI does not. See the
+[maintainer workflow](doc/maintainer-workflow.md)
 for ownership, protected branches, and the exact merge gates.
 
 ## Rebase and resolve conflicts
 
-PR branches must not contain merge commits. CI checks the original commits
-and validates GitHub's integration result without rewriting your branch.
+CI validates GitHub's integration result and does not rewrite your branch.
 When you need newer mainline changes or have a conflict, update your feature
 branch with rebase:
 
@@ -201,9 +200,9 @@ that is not ready for review. The description should include:
 Self-review the diff, respond to review comments, and fix failing checks.
 Request another review after making the requested changes.
 
-Maintainers use **Rebase and merge** to preserve independently meaningful
-commits. Squash intermediate corrections on your feature branch before final
-review. Keep authorship and DCO trailers intact. Other contributors require
+Maintainers may use **Create a merge commit**, **Rebase and merge** to preserve
+independently meaningful commits, or **Squash and merge** to land the PR as one
+commit. Keep authorship and DCO trailers intact. Other contributors require
 approval from the code owner. New code pushes invalidate earlier approvals;
 request review again after updating the PR. The designated maintainer
 `@DanielCao0` may merge their own PRs without another person's approval through

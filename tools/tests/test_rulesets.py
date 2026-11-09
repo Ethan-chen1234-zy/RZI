@@ -19,14 +19,15 @@ class RulesetTests(unittest.TestCase):
         self.assertEqual(baseline["enforcement"], "active")
         self.assertEqual(baseline["bypass_actors"], [])
         rules = {rule["type"]: rule.get("parameters", {}) for rule in baseline["rules"]}
-        for rule in ["deletion", "non_fast_forward", "required_linear_history", "pull_request"]:
+        for rule in ["deletion", "non_fast_forward", "pull_request"]:
             self.assertIn(rule, rules)
+        self.assertNotIn("required_linear_history", rules)
         pr = rules["pull_request"]
         self.assertEqual(pr["required_approving_review_count"], 0)
         self.assertFalse(pr["require_code_owner_review"])
         self.assertFalse(pr["require_last_push_approval"])
         self.assertTrue(pr["required_review_thread_resolution"])
-        self.assertEqual(pr["allowed_merge_methods"], ["rebase"])
+        self.assertEqual(pr["allowed_merge_methods"], ["merge", "rebase", "squash"])
         checks = rules["required_status_checks"]
         self.assertTrue(checks["strict_required_status_checks_policy"])
         self.assertIn(
@@ -48,6 +49,7 @@ class RulesetTests(unittest.TestCase):
         self.assertTrue(params["require_code_owner_review"])
         self.assertTrue(params["require_last_push_approval"])
         self.assertTrue(params["dismiss_stale_reviews_on_push"])
+        self.assertEqual(params["allowed_merge_methods"], ["merge", "rebase", "squash"])
 
     def test_release_tags_have_no_review_bypass(self):
         tags = load("release-tags.json")
