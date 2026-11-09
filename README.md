@@ -48,7 +48,7 @@ RZI is validated with this stack, pinned in [`west.yml`](west.yml):
 
 | Component | Version |
 |---|---|
-| Zephyr | v4.5.0-rc1 |
+| Zephyr | v4.5.0 |
 | Zephyr SDK | 1.0.1 |
 | usp_zephyr | v1.2.1 |
 | usp | v1.2.1 |
@@ -128,7 +128,7 @@ manifest:
   projects:
     - name: zephyr
       url: https://github.com/zephyrproject-rtos/zephyr
-      revision: v4.5.0-rc1
+      revision: v4.5.0
       import: true
 
     - name: rzi
@@ -138,7 +138,7 @@ manifest:
       import: true
 ```
 
-The only Zephyr revision RZI is validated against today is v4.5.0-rc1, the
+The only Zephyr revision RZI is validated against today is v4.5.0, the
 same one RZI pins, so this layout currently moves the pin into your manifest
 without changing it. Any other revision is untested. Do not override
 `usp_zephyr` or `usp` in the application manifest: RZI's patches are

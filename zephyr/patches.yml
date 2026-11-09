@@ -81,7 +81,7 @@ patches:
     upstreamable: true
     apply-command: git apply
     comments: |
-      Update for Zephyr 4.5.0-rc1 APIs: include zephyr/sys/clock.h instead of
+      Update for Zephyr 4.5 APIs: include zephyr/sys/clock.h instead of
       the deprecated sys_clock.h wrapper, and replace SPI_OP_MODE_MASTER with
       SPI_OP_MODE_CONTROLLER in the USP radio board files.
 
