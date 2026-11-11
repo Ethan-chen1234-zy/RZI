@@ -5,8 +5,16 @@
 #include <zephyr/devicetree.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/sys/atomic.h>
+#if defined(CONFIG_HWINFO)
+#include <zephyr/drivers/hwinfo.h>
+#endif
 #include <rzi/lorawan/fuota.h>
 #include <rzi/lorawan/lorawan.h>
+
+#include <uplink_log.h>
+
+#include "uplink_log_rzi.h"
 
 static __maybe_unused void ignore_result(int result)
 {
@@ -15,15 +23,36 @@ static __maybe_unused void ignore_result(int result)
 
 LOG_MODULE_REGISTER(rzi_fuota_sample, LOG_LEVEL_INF);
 
-#define USER_NODE       DT_PATH(zephyr_user)
-#define LORAWAN_REGION  RZI_LORAWAN_REGION_EU_868
-#define RETRY_DELAY_S   5
-#define RETRY_DELAY     K_SECONDS(RETRY_DELAY_S)
-#define UPLINK_INTERVAL K_SECONDS(5)
+#define USER_NODE          DT_PATH(zephyr_user)
+#define LORAWAN_REGION     RZI_LORAWAN_REGION_EU_868
+#define RETRY_DELAY_S      5
+#define RETRY_DELAY        K_SECONDS(RETRY_DELAY_S)
+#define UPLINK_INTERVAL_MS 5000
+
+/* Firmware version reported in the boot report (major.minor.patch.build). */
+#define FW_VERSION_MAJOR 0
+#define FW_VERSION_MINOR 1
+#define FW_VERSION_PATCH 0
+#define FW_VERSION_BUILD 0
+
+#if defined(CONFIG_BOARD_RAK3372_F)
+#define DEVICE_CODE UPLINK_LOG_MODULE_RAK3172_F
+#elif defined(CONFIG_BOARD_RAK4631)
+#define DEVICE_CODE UPLINK_LOG_MODULE_RAK4630
+#else
+#define DEVICE_CODE UPLINK_LOG_MODULE_UNKNOWN
+#endif
+
+/* FUOTA session milestones handed from the dispatcher thread to main. */
+#define FUOTA_SESSION_STARTED BIT(0)
+#define FUOTA_SESSION_ENDED   BIT(1)
+#define FUOTA_FRAG_INCOMPLETE BIT(2)
 
 static K_SEM_DEFINE(stack_ready, 0, 1);
 static K_SEM_DEFINE(join_done, 0, 1);
 static volatile bool joined;
+static atomic_t fuota_milestones;
+static enum rzi_fuota_state fuota_state;
 
 static const char *tx_status_str(enum rzi_lorawan_tx_status status)
 {
@@ -71,6 +100,7 @@ static const char *fuota_state_str(enum rzi_fuota_state state)
 static void on_event(const struct rzi_lorawan_event *event, void *user_data)
 {
 	ARG_UNUSED(user_data);
+	uplink_log_rzi_on_lorawan_event(event);
 	switch (event->type) {
 	case RZI_LORAWAN_EVENT_READY:
 		k_sem_give(&stack_ready);
@@ -104,16 +134,28 @@ static void on_event(const struct rzi_lorawan_event *event, void *user_data)
 	}
 }
 
+static void post_fuota_milestone(atomic_val_t milestone)
+{
+	atomic_or(&fuota_milestones, milestone);
+	uplink_log_rzi_wakeup();
+}
+
 static void on_fuota_state(enum rzi_fuota_state state, void *user_data)
 {
 	ARG_UNUSED(user_data);
 	LOG_INF("FUOTA %s", fuota_state_str(state));
+	/* The session ended before the image was reconstructed. */
+	if (fuota_state == RZI_FUOTA_STATE_TRANSFERRING && state == RZI_FUOTA_STATE_READY) {
+		post_fuota_milestone(FUOTA_FRAG_INCOMPLETE | FUOTA_SESSION_ENDED);
+	}
+	fuota_state = state;
 }
 
 static void on_fuota_session_started(void *user_data)
 {
 	ARG_UNUSED(user_data);
 	LOG_INF("FUOTA transfer started");
+	post_fuota_milestone(FUOTA_SESSION_STARTED);
 }
 
 static void on_fuota_complete(int status, void *user_data)
@@ -121,9 +163,11 @@ static void on_fuota_complete(int status, void *user_data)
 	ARG_UNUSED(user_data);
 	if (status != 0) {
 		LOG_ERR("FUOTA failed: %s", rzi_err_str(status));
+		post_fuota_milestone(FUOTA_FRAG_INCOMPLETE | FUOTA_SESSION_ENDED);
 		return;
 	}
 	LOG_INF("FUOTA finished");
+	post_fuota_milestone(FUOTA_SESSION_ENDED);
 }
 
 static const struct rzi_lorawan_callbacks callbacks = {
@@ -135,6 +179,87 @@ static const struct rzi_fuota_callbacks fuota_callbacks = {
 	.session_started = on_fuota_session_started,
 	.complete = on_fuota_complete,
 };
+
+static void submit_fuota_event(uint8_t code)
+{
+	struct uplink_log_event event = {
+		.domain = UPLINK_LOG_EVENT_DOMAIN_FUOTA,
+		.code = code,
+	};
+	int rc = uplink_log_submit_event(&event);
+
+	if (rc != UPLINK_LOG_OK) {
+		LOG_WRN("FUOTA log event 0x%02x not queued: %d", code, rc);
+	}
+}
+
+/*
+ * The FUOTA service does not expose fragment counts or the target version
+ * yet, so Event Data stays zero.
+ */
+static void handle_fuota_milestones(void)
+{
+	atomic_val_t milestones = atomic_clear(&fuota_milestones);
+
+	if ((milestones & FUOTA_SESSION_STARTED) != 0) {
+		submit_fuota_event(UPLINK_LOG_EVENT_FUOTA_STARTED);
+		ignore_result(uplink_log_pause_drain());
+	}
+	if ((milestones & FUOTA_FRAG_INCOMPLETE) != 0) {
+		submit_fuota_event(UPLINK_LOG_EVENT_FUOTA_FRAG_INCOMPLETE);
+	}
+	if ((milestones & FUOTA_SESSION_ENDED) != 0) {
+		ignore_result(uplink_log_resume_drain());
+	}
+}
+
+static bool periodic_snapshot(void *user_data, struct uplink_log_periodic *out)
+{
+	ARG_UNUSED(user_data);
+	out->power_source = UPLINK_LOG_POWER_SOURCE_UNKNOWN;
+	out->charging_status = UPLINK_LOG_CHARGING_UNKNOWN;
+	out->voltage_mv = 0U;
+	out->rssi_dbm = uplink_log_rzi_last_rssi();
+	out->snr_db = uplink_log_rzi_last_snr();
+	out->tx_fail_count = uplink_log_rzi_tx_fail_count();
+	out->health = UPLINK_LOG_HEALTH_SENSOR | UPLINK_LOG_HEALTH_POWER | UPLINK_LOG_HEALTH_SYSTEM;
+	return true;
+}
+
+static enum uplink_log_reset_reason read_reset_reason(void)
+{
+#if defined(CONFIG_HWINFO)
+	uint32_t cause;
+
+	if (hwinfo_get_reset_cause(&cause) == 0) {
+		ignore_result(hwinfo_clear_reset_cause());
+		if ((cause & RESET_WATCHDOG) != 0U) {
+			return UPLINK_LOG_RESET_WATCHDOG;
+		}
+		if ((cause & RESET_POR) != 0U) {
+			return UPLINK_LOG_RESET_POWER_ON;
+		}
+	}
+#endif
+	return UPLINK_LOG_RESET_UNKNOWN;
+}
+
+static void submit_boot_report(enum uplink_log_reset_reason reset_reason, uint32_t join_failures)
+{
+	const struct uplink_log_boot boot = {
+		.fw_version = {FW_VERSION_MAJOR, FW_VERSION_MINOR, FW_VERSION_PATCH,
+			       FW_VERSION_BUILD},
+		.reset_reason = reset_reason,
+		.cap_fuota = true,
+		.cap_full = true,
+		.join_fail_count = (uint8_t)MIN(join_failures, UINT8_MAX),
+	};
+	int rc = uplink_log_submit_boot(&boot);
+
+	if (rc != UPLINK_LOG_OK) {
+		LOG_WRN("Boot report not queued: %d", rc);
+	}
+}
 
 static int request_join(void)
 {
@@ -163,9 +288,22 @@ int main(void)
 	static const uint8_t app_key[] = DT_PROP(USER_NODE, user_lorawan_app_key);
 	static const uint8_t gen_app_key[] = DT_PROP(USER_NODE, user_lorawan_gen_app_key);
 	static const uint8_t payload[] = "RZI FUOTA";
+	const struct uplink_log_options log_options = {
+		.device_code = DEVICE_CODE,
+		.periodic_snapshot = periodic_snapshot,
+	};
+	enum uplink_log_reset_reason reset_reason = read_reset_reason();
+	uint32_t join_failures = 0U;
+	int64_t next_uplink;
 	int rc;
 
-	LOG_INF("RZI LoRaWAN FUOTA sample");
+	LOG_INF("RZI LoRaWAN FUOTA sample %d.%d.%d.%d", FW_VERSION_MAJOR, FW_VERSION_MINOR,
+		FW_VERSION_PATCH, FW_VERSION_BUILD);
+	rc = uplink_log_rzi_init(&log_options);
+	if (rc != UPLINK_LOG_OK) {
+		LOG_ERR("Uplink log init failed: %d", rc);
+		return -EINVAL;
+	}
 	rc = rzi_fuota_register_callbacks(&fuota_callbacks);
 	if (rc != 0) {
 		LOG_ERR("FUOTA callback registration failed: %s", rzi_err_str(rc));
@@ -210,16 +348,26 @@ int main(void)
 	k_sem_take(&stack_ready, K_FOREVER);
 
 	while (request_join() != 0) {
+		join_failures++;
 		ignore_result(rzi_lorawan_leave());
 		k_sleep(RETRY_DELAY);
 	}
 	LOG_INF("Joined");
+	submit_boot_report(reset_reason, join_failures);
 
+	next_uplink = k_uptime_get();
 	for (;;) {
-		rc = rzi_lorawan_send(1, payload, sizeof(payload) - 1, RZI_LORAWAN_MSG_UNCONFIRMED);
-		if (rc != 0 && rc != -RZI_ERR_BUSY) {
-			LOG_WRN("Uplink rejected: %s", rzi_err_str(rc));
+		int64_t now = k_uptime_get();
+
+		if (now >= next_uplink) {
+			rc = rzi_lorawan_send(1, payload, sizeof(payload) - 1,
+					      RZI_LORAWAN_MSG_UNCONFIRMED);
+			if (rc != 0 && rc != -RZI_ERR_BUSY) {
+				LOG_WRN("Uplink rejected: %s", rzi_err_str(rc));
+			}
+			next_uplink = now + UPLINK_INTERVAL_MS;
 		}
-		k_sleep(UPLINK_INTERVAL);
+		handle_fuota_milestones();
+		uplink_log_rzi_poll((uint32_t)MAX(next_uplink - k_uptime_get(), 0));
 	}
 }

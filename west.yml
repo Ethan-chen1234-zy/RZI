@@ -45,3 +45,10 @@ manifest:
       path: modules/lib/lora-basics-modem
       url: https://github.com/zephyrproject-rtos/lora-basics-modem
       revision: a8ddc544043e72807cf7db532478e1dda734ae7c
+
+    # HPatchLite (main). submodules: tinyuz, HDiffPatch.
+    - name: HPatchLite
+      path: modules/HPatchLite
+      url: https://github.com/candy-1020/HPatchLite
+      revision: 6c9e469b03b694ef71f7b8972e0af086c5980bac # main
+      submodules: true
