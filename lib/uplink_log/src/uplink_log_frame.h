@@ -34,6 +34,4 @@ void uplink_log_frame_custom(uint8_t frame[UPLINK_LOG_FRAME_SIZE], uint8_t devic
 
 uint8_t uplink_log_frame_rssi(int16_t rssi_dbm);
 
-uint16_t uplink_log_crc16(const uint8_t *data, size_t size);
-
 #endif /* UPLINK_LOG_FRAME_H */

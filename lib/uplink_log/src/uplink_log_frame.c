@@ -98,18 +98,3 @@ void uplink_log_frame_custom(uint8_t frame[UPLINK_LOG_FRAME_SIZE], uint8_t devic
 
 	memcpy(p, payload, UPLINK_LOG_PAYLOAD_SIZE);
 }
-
-/* CRC-16/CCITT-FALSE */
-uint16_t uplink_log_crc16(const uint8_t *data, size_t size)
-{
-	uint16_t crc = 0xFFFFU;
-
-	for (size_t i = 0; i < size; i++) {
-		crc ^= (uint16_t)((uint16_t)data[i] << 8);
-		for (int bit = 0; bit < 8; bit++) {
-			crc = (crc & 0x8000U) != 0U ? (uint16_t)((crc << 1) ^ 0x1021U)
-						    : (uint16_t)(crc << 1);
-		}
-	}
-	return crc;
-}

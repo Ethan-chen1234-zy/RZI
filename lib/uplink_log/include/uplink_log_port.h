@@ -7,6 +7,9 @@
  * Only the platform adaptation includes this header. It registers the
  * platform capabilities with uplink_log_init(), drives uplink_log_process()
  * and reports transmit results back to the library.
+ *
+ * The library does not use flash. Cross-reboot storage, if any, belongs to
+ * the application.
  */
 #ifndef UPLINK_LOG_PORT_H
 #define UPLINK_LOG_PORT_H
@@ -16,10 +19,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/** Largest blob handed to uplink_log_port.persist_save. */
-#define UPLINK_LOG_PERSIST_MAX_ITEMS 4U
-#define UPLINK_LOG_PERSIST_MAX_SIZE  (5U + UPLINK_LOG_PERSIST_MAX_ITEMS * 12U + 2U)
 
 /** Outcome of a frame previously accepted by uplink_log_port.send. */
 enum uplink_log_tx_result {
@@ -52,15 +51,6 @@ struct uplink_log_port {
 	 */
 	int (*send)(void *ctx, const uint8_t *frame, size_t size, bool confirmed);
 
-	/**
-	 * Optional. Load the blob last saved, setting *size. Return non-zero
-	 * when nothing is stored. Without load and save, FUOTA results and the
-	 * pending reset reason do not survive a reboot.
-	 */
-	int (*persist_load)(void *ctx, uint8_t *buf, size_t capacity, size_t *size);
-	/** Optional. Atomically replace the stored blob. The content is opaque. */
-	int (*persist_save)(void *ctx, const uint8_t *buf, size_t size);
-
 	/** Optional. Needed when the library is called from more than one thread. */
 	void (*lock)(void *ctx);
 	void (*unlock)(void *ctx);
@@ -70,9 +60,7 @@ struct uplink_log_port {
 };
 
 /**
- * @brief Register the platform and reset all library state.
- *
- * Restores the persisted reset reason and FUOTA result events.
+ * @brief Register the platform and reset all library state for this boot.
  *
  * @retval UPLINK_LOG_OK Ready.
  * @retval UPLINK_LOG_ERR_INVALID A required hook or option is missing or invalid.

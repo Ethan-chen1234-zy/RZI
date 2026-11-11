@@ -8,18 +8,7 @@
 
 #define BOOT_MAX_ATTEMPTS (1U + UPLINK_LOG_BOOT_MAX_RETRIES)
 #define SEND_RETRY_SEC    1U
-#define RESET_NONE        0xFFU
-/* Bounds the age lost by a reboot while persisted records wait for an ACK. */
-#define PERSIST_AGE_REFRESH_SEC 3600U
-
-#define PERSIST_MAGIC0  0x55U
-#define PERSIST_MAGIC1  0x4CU
-#define PERSIST_FORMAT  1U
-#define PERSIST_HEADER  5U
-#define PERSIST_ITEM    12U
-#define PERSIST_CRC     2U
-#define PERSIST_URGENT  (1U << 0)
-#define COOLDOWN_KEY_SZ 5U
+#define COOLDOWN_KEY_SZ   5U
 
 enum inflight_kind {
 	INFLIGHT_NONE,
@@ -33,8 +22,6 @@ enum inflight_kind {
 struct record {
 	uint32_t seq;
 	uint32_t enqueued_at;
-	/* Age accumulated before this boot, restored from persistence. */
-	uint32_t age_base;
 	uint8_t type;
 	/* Event domain or config status. */
 	uint8_t nibble;
@@ -44,7 +31,6 @@ struct record {
 	/* Transmissions so far; the next frame carries this as retry_count. */
 	uint8_t tx_count;
 	bool urgent;
-	bool persistent;
 };
 
 struct cooldown {
@@ -70,7 +56,6 @@ static struct {
 	uint32_t inflight_at;
 
 	bool boot_pending;
-	bool boot_uses_pending_reason;
 	struct uplink_log_boot boot;
 	uint32_t boot_gen;
 	uint8_t boot_attempts;
@@ -90,10 +75,6 @@ static struct {
 	/* Newest record not yet sent; it goes out before the drain order. */
 	uint32_t fresh_seq;
 	struct cooldown cooldowns[UPLINK_LOG_QUEUE_DEPTH];
-
-	uint8_t pending_reset;
-	bool persist_dirty;
-	uint32_t persist_saved_at;
 } s;
 
 static void lock(void)
@@ -135,9 +116,7 @@ static bool is_fuota_result(uint8_t domain, uint8_t code)
 
 static uint32_t record_age(const struct record *r, uint32_t now)
 {
-	uint32_t age = r->age_base + (now - r->enqueued_at);
-
-	return age < r->age_base ? UINT32_MAX : age;
+	return now - r->enqueued_at;
 }
 
 static size_t record_count(void)
@@ -165,9 +144,6 @@ static struct record *find_record(uint32_t seq)
 
 static void remove_record(struct record *r)
 {
-	if (r->persistent) {
-		s.persist_dirty = true;
-	}
 	if (r->seq == s.fresh_seq) {
 		s.fresh_seq = 0U;
 	}
@@ -215,7 +191,7 @@ static struct record *alloc_record(void)
 }
 
 static struct record *enqueue(uint8_t type, uint8_t nibble, uint8_t code, const uint8_t data[4],
-			      bool urgent, bool persistent, uint32_t now)
+			      bool urgent, uint32_t now)
 {
 	struct record *r = alloc_record();
 
@@ -229,10 +205,6 @@ static struct record *enqueue(uint8_t type, uint8_t nibble, uint8_t code, const 
 	r->code = code;
 	memcpy(r->data, data, sizeof(r->data));
 	r->urgent = urgent;
-	r->persistent = persistent;
-	if (persistent) {
-		s.persist_dirty = true;
-	}
 	return r;
 }
 
@@ -270,124 +242,6 @@ static void cooldown_start(uint8_t type, const uint8_t key[COOLDOWN_KEY_SZ], uin
 	slot->since = now;
 }
 
-static void put_le32(uint8_t *p, uint32_t v)
-{
-	p[0] = (uint8_t)v;
-	p[1] = (uint8_t)(v >> 8);
-	p[2] = (uint8_t)(v >> 16);
-	p[3] = (uint8_t)(v >> 24);
-}
-
-static uint32_t get_le32(const uint8_t *p)
-{
-	return (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) |
-	       ((uint32_t)p[3] << 24);
-}
-
-static int persist_save(uint32_t now)
-{
-	uint8_t buf[UPLINK_LOG_PERSIST_MAX_SIZE];
-	size_t size = PERSIST_HEADER;
-	uint32_t last = 0U;
-	uint8_t n = 0U;
-	uint16_t crc;
-
-	if (s.port.persist_save == NULL) {
-		s.persist_dirty = false;
-		return UPLINK_LOG_OK;
-	}
-
-	buf[0] = PERSIST_MAGIC0;
-	buf[1] = PERSIST_MAGIC1;
-	buf[2] = PERSIST_FORMAT;
-	buf[3] = s.pending_reset;
-	while (n < UPLINK_LOG_PERSIST_MAX_ITEMS) {
-		const struct record *next = NULL;
-
-		for (size_t i = 0; i < UPLINK_LOG_QUEUE_DEPTH; i++) {
-			const struct record *r = &s.queue[i];
-
-			if (r->seq > last && r->persistent && (next == NULL || r->seq < next->seq)) {
-				next = r;
-			}
-		}
-		if (next == NULL) {
-			break;
-		}
-		uint8_t *p = &buf[size];
-
-		p[0] = next->nibble;
-		p[1] = next->code;
-		memcpy(&p[2], next->data, 4);
-		p[6] = next->urgent ? PERSIST_URGENT : 0U;
-		p[7] = next->tx_count;
-		put_le32(&p[8], record_age(next, now));
-		size += PERSIST_ITEM;
-		last = next->seq;
-		n++;
-	}
-	buf[4] = n;
-	crc = uplink_log_crc16(buf, size);
-	buf[size++] = (uint8_t)crc;
-	buf[size++] = (uint8_t)(crc >> 8);
-
-	/* Also on failure, so a broken backend is retried hourly, not in a loop. */
-	s.persist_saved_at = now;
-	if (s.port.persist_save(s.port.ctx, buf, size) != 0) {
-		return UPLINK_LOG_ERR_IO;
-	}
-	s.persist_dirty = false;
-	return UPLINK_LOG_OK;
-}
-
-static void persist_restore(uint32_t now)
-{
-	uint8_t buf[UPLINK_LOG_PERSIST_MAX_SIZE];
-	size_t size = 0U;
-	uint8_t n;
-
-	if (s.port.persist_load == NULL ||
-	    s.port.persist_load(s.port.ctx, buf, sizeof(buf), &size) != 0) {
-		return;
-	}
-	if (size < PERSIST_HEADER + PERSIST_CRC || size > sizeof(buf) || buf[0] != PERSIST_MAGIC0 ||
-	    buf[1] != PERSIST_MAGIC1 || buf[2] != PERSIST_FORMAT) {
-		return;
-	}
-	n = buf[4];
-	if (n > UPLINK_LOG_PERSIST_MAX_ITEMS ||
-	    size != PERSIST_HEADER + (size_t)n * PERSIST_ITEM + PERSIST_CRC ||
-	    uplink_log_crc16(buf, size - PERSIST_CRC) !=
-		    (uint16_t)(buf[size - 2] | (buf[size - 1] << 8))) {
-		return;
-	}
-
-	s.pending_reset = buf[3] <= 0xFU ? buf[3] : RESET_NONE;
-	for (uint8_t i = 0; i < n; i++) {
-		const uint8_t *p = &buf[PERSIST_HEADER + (size_t)i * PERSIST_ITEM];
-		struct record *r = enqueue(UPLINK_LOG_TYPE_EVENT, p[0] & 0xFU, p[1], &p[2],
-					   (p[6] & PERSIST_URGENT) != 0U, true, now);
-
-		r->tx_count = p[7];
-		r->age_base = get_le32(&p[8]);
-	}
-	s.persist_dirty = false;
-	s.persist_saved_at = now;
-	if (n > 0U) {
-		s.drain_requested = true;
-	}
-}
-
-static bool has_persistent_records(void)
-{
-	for (size_t i = 0; i < UPLINK_LOG_QUEUE_DEPTH; i++) {
-		if (s.queue[i].seq != 0U && s.queue[i].persistent) {
-			return true;
-		}
-	}
-	return false;
-}
-
 static void expire_records(uint32_t now)
 {
 	for (size_t i = 0; i < UPLINK_LOG_QUEUE_DEPTH; i++) {
@@ -423,10 +277,6 @@ static void handle_result(enum uplink_log_tx_result result, uint32_t now)
 		}
 		if (acked) {
 			s.boot_pending = false;
-			if (s.boot_uses_pending_reason) {
-				s.pending_reset = RESET_NONE;
-				s.persist_dirty = true;
-			}
 			s.drain_requested = true;
 		} else if (s.boot_attempts >= BOOT_MAX_ATTEMPTS) {
 			s.boot_pending = false;
@@ -520,9 +370,6 @@ static void try_send(uint32_t now)
 		if (r->tx_count < UINT8_MAX) {
 			r->tx_count++;
 		}
-		if (r->persistent) {
-			s.persist_dirty = true;
-		}
 		break;
 	default:
 		break;
@@ -545,12 +392,9 @@ static uint32_t next_deadline(uint32_t now)
 	for (size_t i = 0; i < UPLINK_LOG_QUEUE_DEPTH; i++) {
 		const struct record *r = &s.queue[i];
 
-		if (r->seq != 0U && r->age_base < UPLINK_LOG_GIVE_UP_SEC) {
-			consider(&next, now, r->enqueued_at + (UPLINK_LOG_GIVE_UP_SEC - r->age_base));
+		if (r->seq != 0U) {
+			consider(&next, now, r->enqueued_at + UPLINK_LOG_GIVE_UP_SEC);
 		}
-	}
-	if (s.port.persist_save != NULL && has_persistent_records()) {
-		consider(&next, now, s.persist_saved_at + PERSIST_AGE_REFRESH_SEC);
 	}
 	if (!s.link_up) {
 		return next;
@@ -596,9 +440,7 @@ int uplink_log_init(const struct uplink_log_port *port, const struct uplink_log_
 	s.port = *port;
 	s.opts = *options;
 	s.periodic_interval_sec = (uint32_t)minutes * 60U;
-	s.pending_reset = RESET_NONE;
 	s.next_seq = 1U;
-	persist_restore(now_sec());
 	s.ready = true;
 	unlock();
 	return UPLINK_LOG_OK;
@@ -676,13 +518,6 @@ uint32_t uplink_log_process(void)
 	if (s.link_up && s.inflight == INFLIGHT_NONE && reached(now, s.send_retry_at)) {
 		try_send(now);
 	}
-	if (has_persistent_records() &&
-	    reached(now, s.persist_saved_at + PERSIST_AGE_REFRESH_SEC)) {
-		s.persist_dirty = true;
-	}
-	if (s.persist_dirty) {
-		(void)persist_save(now);
-	}
 	next = next_deadline(now);
 	unlock();
 	return next;
@@ -699,10 +534,6 @@ int uplink_log_submit_boot(const struct uplink_log_boot *boot)
 		return UPLINK_LOG_ERR_STATE;
 	}
 	s.boot = *boot;
-	s.boot_uses_pending_reason = s.pending_reset != RESET_NONE;
-	if (s.boot_uses_pending_reason) {
-		s.boot.reset_reason = (enum uplink_log_reset_reason)s.pending_reset;
-	}
 	s.boot_gen++;
 	s.boot_pending = true;
 	s.boot_attempts = 0U;
@@ -748,7 +579,7 @@ int uplink_log_submit_custom(const uint8_t payload[UPLINK_LOG_PAYLOAD_SIZE])
 
 /* Common path for event and config records. Caller holds the lock. */
 static int submit_record(uint8_t type, uint8_t nibble, uint8_t code, const uint8_t data[4],
-			 bool urgent, bool dedup, bool persistent, const uint8_t key[COOLDOWN_KEY_SZ])
+			 bool urgent, bool dedup, const uint8_t key[COOLDOWN_KEY_SZ])
 {
 	uint32_t now = now_sec();
 	struct record *r;
@@ -757,7 +588,7 @@ static int submit_record(uint8_t type, uint8_t nibble, uint8_t code, const uint8
 		s.drain_requested = true;
 		return UPLINK_LOG_ERR_SUPPRESSED;
 	}
-	r = enqueue(type, nibble, code, data, urgent, persistent, now);
+	r = enqueue(type, nibble, code, data, urgent, now);
 	if (dedup) {
 		cooldown_start(type, key, now);
 	}
@@ -765,9 +596,6 @@ static int submit_record(uint8_t type, uint8_t nibble, uint8_t code, const uint8
 		s.drain_requested = true;
 	}
 	s.fresh_seq = r->seq;
-	if (persistent && persist_save(now) != UPLINK_LOG_OK) {
-		return UPLINK_LOG_ERR_IO;
-	}
 	return UPLINK_LOG_OK;
 }
 
@@ -792,7 +620,7 @@ int uplink_log_submit_event(const struct uplink_log_event *event)
 		return UPLINK_LOG_ERR_STATE;
 	}
 	rc = submit_record(UPLINK_LOG_TYPE_EVENT, event->domain, event->code, event->data,
-			   event->urgent || result, !fuota, result, key);
+			   event->urgent || result, !fuota, key);
 	unlock();
 	wakeup();
 	return rc;
@@ -820,7 +648,7 @@ int uplink_log_submit_config(const struct uplink_log_config_report *config)
 		return UPLINK_LOG_ERR_STATE;
 	}
 	rc = submit_record(UPLINK_LOG_TYPE_CONFIG, (uint8_t)config->status, config->config_type,
-			   data, config->urgent, true, false, key);
+			   data, config->urgent, true, key);
 	unlock();
 	wakeup();
 	return rc;
@@ -870,24 +698,6 @@ int uplink_log_pause_drain(void)
 int uplink_log_resume_drain(void)
 {
 	return set_paused(false);
-}
-
-int uplink_log_set_next_reset_reason(enum uplink_log_reset_reason reason)
-{
-	int rc;
-
-	if ((uint32_t)reason > 0xFU) {
-		return UPLINK_LOG_ERR_INVALID;
-	}
-	lock();
-	if (!s.ready) {
-		unlock();
-		return UPLINK_LOG_ERR_STATE;
-	}
-	s.pending_reset = (uint8_t)reason;
-	rc = persist_save(now_sec());
-	unlock();
-	return rc;
 }
 
 size_t uplink_log_queue_count(void)

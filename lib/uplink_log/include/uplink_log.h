@@ -9,6 +9,9 @@
  * library is plain C99 and has no platform dependency; the platform side is
  * registered through uplink_log_port.h.
  *
+ * State is valid for the current boot only. The library does not use flash;
+ * anything that must survive reboot is the application's responsibility.
+ *
  * All functions are serialized through the optional port lock. Submit
  * functions never transmit directly: they queue the record and request a
  * call to uplink_log_process() through the port wakeup hook.
@@ -74,8 +77,6 @@ enum uplink_log_err {
 	UPLINK_LOG_ERR_STATE = -2,
 	/** The record matched one still in its 30 min cooldown and was dropped. */
 	UPLINK_LOG_ERR_SUPPRESSED = -3,
-	/** The platform persistence hook failed. */
-	UPLINK_LOG_ERR_IO = -4,
 };
 
 /** Byte 1: device or module code. */
@@ -169,7 +170,7 @@ enum uplink_log_system_event {
 
 /**
  * FUOTA domain event codes. Codes from UPLINK_LOG_EVENT_FUOTA_SUCCESS upwards
- * are result events: always urgent and persisted until acknowledged.
+ * are result events and are always treated as urgent for this boot.
  */
 enum uplink_log_fuota_event {
 	UPLINK_LOG_EVENT_FUOTA_STARTED = 0x01,
@@ -219,7 +220,7 @@ struct uplink_log_version {
 /** Content of a type 0x01 boot report. */
 struct uplink_log_boot {
 	struct uplink_log_version fw_version;
-	/** Used unless a reason stored by uplink_log_set_next_reset_reason() is pending. */
+	/** Filled by the application for this boot report. */
 	enum uplink_log_reset_reason reset_reason;
 	bool cap_fuota;
 	bool cap_delta;
@@ -303,7 +304,6 @@ int uplink_log_submit_periodic(const struct uplink_log_periodic *periodic);
  *
  * @retval UPLINK_LOG_OK Record queued.
  * @retval UPLINK_LOG_ERR_SUPPRESSED The Domain/Code pair is in its cooldown.
- * @retval UPLINK_LOG_ERR_IO A FUOTA result was queued but could not be persisted.
  */
 int uplink_log_submit_event(const struct uplink_log_event *event);
 
@@ -331,15 +331,6 @@ int uplink_log_pause_drain(void);
 
 /** @brief Resume sending event and config records. */
 int uplink_log_resume_drain(void);
-
-/**
- * @brief Persist the reset reason for the next boot report.
- *
- * Call before a FUOTA-triggered reboot with UPLINK_LOG_RESET_FUOTA. The
- * reason is written synchronously and cleared once a boot report carrying it
- * is acknowledged.
- */
-int uplink_log_set_next_reset_reason(enum uplink_log_reset_reason reason);
 
 /** @brief Number of queued event and config records. */
 size_t uplink_log_queue_count(void);

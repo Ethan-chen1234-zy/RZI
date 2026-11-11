@@ -1,12 +1,8 @@
 /* SPDX-FileCopyrightText: Copyright (c) 2026 RAKwireless */
 /* SPDX-License-Identifier: Apache-2.0 */
 
-#include <errno.h>
-#include <string.h>
-#include <zephyr/devicetree.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
-#include <zephyr/storage/flash_map.h>
 #include <zephyr/sys/atomic.h>
 #include <rzi/err.h>
 #include <rzi/lorawan/lorawan.h>
@@ -16,31 +12,6 @@
 #include "uplink_log_rzi.h"
 
 LOG_MODULE_REGISTER(uplink_log_rzi, LOG_LEVEL_INF);
-
-/*
- * The log state lives in raw flash inside storage_partition, written as an
- * append-only sequence of fixed slots and erased only when the region is full.
- */
-#define STORAGE_SIZE DT_REG_SIZE(DT_NODELABEL(storage_partition))
-#if DT_HAS_CHOSEN(lora_basics_modem_context_partition)
-/* LBM keeps its context in its own partition. */
-#define LOG_REGION_OFFSET 0
-#define LOG_REGION_SIZE   STORAGE_SIZE
-#else
-/* LBM writes its context to the first 8 KiB of storage_partition. */
-BUILD_ASSERT(!IS_ENABLED(CONFIG_LORA_BASICS_MODEM_STORE_AND_FORWARD),
-	     "LBM store-and-forward uses the rest of storage_partition");
-#define LOG_REGION_SIZE   4096
-#define LOG_REGION_OFFSET (STORAGE_SIZE - LOG_REGION_SIZE)
-BUILD_ASSERT(LOG_REGION_OFFSET >= 8192, "storage_partition too small for LBM and the uplink log");
-#endif
-
-#define SLOT_SIZE   64U
-#define SLOT_COUNT  (LOG_REGION_SIZE / SLOT_SIZE)
-#define SLOT_MAGIC  0xA5U
-#define SLOT_HEADER 3U
-BUILD_ASSERT(SLOT_HEADER + UPLINK_LOG_PERSIST_MAX_SIZE <= SLOT_SIZE);
-BUILD_ASSERT(UPLINK_LOG_PERSIST_MAX_SIZE <= UINT8_MAX);
 
 /* Zero means "no result"; otherwise enum uplink_log_tx_result + 1. */
 #define NO_TX_RESULT 0
@@ -78,106 +49,6 @@ static int port_send(void *ctx, const uint8_t *frame, size_t size, bool confirme
 	return rc;
 }
 
-static const struct flash_area *log_area;
-/* First erased slot; slots before it hold data or foreign bytes. */
-static uint32_t next_slot;
-
-static off_t slot_offset(uint32_t slot)
-{
-	return LOG_REGION_OFFSET + (off_t)slot * SLOT_SIZE;
-}
-
-static bool slot_valid(const uint8_t *header)
-{
-	return header[0] == SLOT_MAGIC && header[1] == (uint8_t)~header[2] &&
-	       header[1] <= UPLINK_LOG_PERSIST_MAX_SIZE;
-}
-
-static int area_open(void)
-{
-	uint8_t erased;
-	uint8_t header[SLOT_HEADER];
-	int rc;
-
-	rc = flash_area_open(PARTITION_ID(storage_partition), &log_area);
-	if (rc != 0) {
-		return rc;
-	}
-	if (SLOT_SIZE % flash_area_align(log_area) != 0U) {
-		flash_area_close(log_area);
-		log_area = NULL;
-		return -ENOTSUP;
-	}
-	erased = flash_area_erased_val(log_area);
-	for (next_slot = 0U; next_slot < SLOT_COUNT; next_slot++) {
-		rc = flash_area_read(log_area, slot_offset(next_slot), header, sizeof(header));
-		if (rc != 0) {
-			flash_area_close(log_area);
-			log_area = NULL;
-			return rc;
-		}
-		if (header[0] == erased && header[1] == erased && header[2] == erased) {
-			break;
-		}
-	}
-	return 0;
-}
-
-static int port_persist_load(void *ctx, uint8_t *buf, size_t capacity, size_t *size)
-{
-	uint8_t header[SLOT_HEADER];
-
-	ARG_UNUSED(ctx);
-	if (log_area == NULL) {
-		return -ENODEV;
-	}
-	for (uint32_t slot = next_slot; slot-- > 0U;) {
-		off_t offset = slot_offset(slot);
-
-		if (flash_area_read(log_area, offset, header, sizeof(header)) != 0 ||
-		    !slot_valid(header)) {
-			continue;
-		}
-		if (header[1] > capacity) {
-			return -ENOSPC;
-		}
-		*size = header[1];
-		return flash_area_read(log_area, offset + SLOT_HEADER, buf, header[1]);
-	}
-	return -ENOENT;
-}
-
-static int port_persist_save(void *ctx, const uint8_t *buf, size_t size)
-{
-	uint8_t slot[SLOT_SIZE];
-	int rc;
-
-	ARG_UNUSED(ctx);
-	if (log_area == NULL) {
-		return -ENODEV;
-	}
-	if (next_slot >= SLOT_COUNT) {
-		rc = flash_area_erase(log_area, LOG_REGION_OFFSET, LOG_REGION_SIZE);
-		if (rc != 0) {
-			LOG_WRN("Log state erase failed: %d", rc);
-			return rc;
-		}
-		next_slot = 0U;
-	}
-	memset(slot, flash_area_erased_val(log_area), sizeof(slot));
-	slot[0] = SLOT_MAGIC;
-	slot[1] = (uint8_t)size;
-	slot[2] = (uint8_t)~size;
-	memcpy(&slot[SLOT_HEADER], buf, size);
-	rc = flash_area_write(log_area, slot_offset(next_slot), slot, sizeof(slot));
-	/* A failed write may leave the slot partly programmed; never reuse it. */
-	next_slot++;
-	if (rc != 0) {
-		LOG_WRN("Log state not saved: %d", rc);
-	}
-	return rc;
-}
-
 static void port_lock(void *ctx)
 {
 	ARG_UNUSED(ctx);
@@ -199,8 +70,6 @@ static void port_wakeup(void *ctx)
 static const struct uplink_log_port port = {
 	.uptime_sec = port_uptime_sec,
 	.send = port_send,
-	.persist_load = port_persist_load,
-	.persist_save = port_persist_save,
 	.lock = port_lock,
 	.unlock = port_unlock,
 	.wakeup = port_wakeup,
@@ -208,11 +77,6 @@ static const struct uplink_log_port port = {
 
 int uplink_log_rzi_init(const struct uplink_log_options *options)
 {
-	int rc = area_open();
-
-	if (rc != 0) {
-		LOG_WRN("Log storage unavailable, state is not persisted: %d", rc);
-	}
 	return uplink_log_init(&port, options);
 }
 

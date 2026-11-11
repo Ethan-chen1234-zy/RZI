@@ -3,6 +3,9 @@
 /**
  * @file
  * @brief This sample's port of the uplink log library onto RZI and Zephyr.
+ *
+ * Provides send, uptime, locking and TX-result bridging only. The library
+ * keeps no flash state; cross-reboot records belong to the application.
  */
 #ifndef UPLINK_LOG_RZI_H
 #define UPLINK_LOG_RZI_H
