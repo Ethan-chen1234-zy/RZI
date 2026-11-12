@@ -1,16 +1,24 @@
-/* SPDX-FileCopyrightText: Copyright (c) 2026 RAKwireless */
-/* SPDX-License-Identifier: Apache-2.0 */
 /*
- * rak3372_f flash map.
- *
- * Internal STM32WLE5 flash is 256 KiB and holds the running image:
- * 48K boot + 192K slot0 + 8K storage + 8K LoRaWAN context. MCUboot is
- * larger than on RAK3372 because it has to read the MX25L400. The
- * 512 KiB NOR holds slot1 at the same size as slot0. MCUboot copies
- * slot1 over slot0 (overwrite). LoRaWAN FUOTA writes the signed image
- * to image-1.
+ * SPDX-FileCopyrightText: Copyright (c) 2026 RAKwireless
+ * SPDX-License-Identifier: Apache-2.0
  */
 
+/*
+ * RAK3372-F flash map (overwrite-only MCUBoot).
+ *
+ * Internal STM32WLE5 flash (256 KB):
+ *   48K boot + 208K slot0.
+ *
+ * On-module MX25L400 (512 KB):
+ *   208K slot1 + 8K storage + 8K lora_context.
+ * Remaining external space is unused.
+ *
+ * Settings / NVS and LoRa Basics Modem context live on external flash so
+ * slot0 can use the full remaining internal flash after the bootloader.
+ * slot0 and slot1 stay the same size for overwrite-only MCUBoot.
+ *
+ * The board .yml requires the SPI NOR so MCUboot can read image-1.
+ */
 / {
 	chosen {
 		zephyr,sram = &sram0;
@@ -36,19 +44,7 @@
 		slot0_partition: partition@c000 {
 			compatible = "zephyr,mapped-partition";
 			label = "image-0";
-			reg = <0x0000c000 DT_SIZE_K(192)>;
-		};
-
-		storage_partition: partition@3c000 {
-			compatible = "zephyr,mapped-partition";
-			label = "storage";
-			reg = <0x0003c000 DT_SIZE_K(8)>;
-		};
-
-		lora_context_partition: partition@3e000 {
-			compatible = "zephyr,mapped-partition";
-			label = "lora_context";
-			reg = <0x0003e000 DT_SIZE_K(8)>;
+			reg = <0x0000c000 DT_SIZE_K(208)>;
 		};
 	};
 };
@@ -61,7 +57,17 @@
 
 		slot1_partition: partition@0 {
 			label = "image-1";
-			reg = <0x00000000 DT_SIZE_K(192)>;
+			reg = <0x00000000 DT_SIZE_K(208)>;
+		};
+
+		storage_partition: partition@34000 {
+			label = "storage";
+			reg = <0x00034000 DT_SIZE_K(8)>;
+		};
+
+		lora_context_partition: partition@36000 {
+			label = "lora_context";
+			reg = <0x00036000 DT_SIZE_K(8)>;
 		};
 	};
 };

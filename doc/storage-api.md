@@ -34,15 +34,18 @@ another service's namespace.
 
 Callers must stay in thread context.
 
-## RAK3172 and RAK3172-F
+## RAK3172 and RAK3372-F
 
-Both boards reserve separate internal-flash areas for settings and the
+RAK3172 reserves separate internal-flash areas for settings and the
 LoRa Basics Modem context. Settings uses `storage_partition` at offset
 `0x3c000` (8 KiB), while the modem uses `lora_context_partition` at
 `0x3e000` (8 KiB). Offsets are relative to internal flash at `0x08000000`.
 The 2 KiB erase page gives settings NVS four sectors; its default sector
-count is capped by the actual partition size. RAK3172-F external flash
-holds the secondary firmware image, not settings or modem context.
+count is capped by the actual partition size.
+
+RAK3372-F places both `storage` and `lora_context` on the MX25L400
+(8 KiB each at `0x34000` and `0x36000`) so internal flash can hold a
+larger `image-0`. External flash also holds `image-1` for overwrite FUOTA.
 
 The AT sample enables RZI storage with settings NVS. The periodic-uplink
 sample leaves RZI storage disabled and reads credentials from devicetree;
