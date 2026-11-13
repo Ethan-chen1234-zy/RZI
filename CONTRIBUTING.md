@@ -51,6 +51,34 @@ branch for `main` throughout this guide.
 The optional hooks run staged C style checks and commit-message checks.
 Their dependencies and local commands are documented in [CI](doc/development/ci.md).
 
+## clangd setup
+
+The checked-in .clangd contains shared parsing adjustments only. It does
+not select a developer's build directory, CPU target, or floating-point ABI.
+Clangd uses the active build's compile_commands.json and compiler settings.
+
+After configuring a build with CMAKE_EXPORT_COMPILE_COMMANDS enabled, link
+its application-domain database into the RZI repository. For example, from
+the west workspace root:
+
+```sh
+ln -s ../build/uplink-rak3172-rzi/periodical_uplink/compile_commands.json \
+  rzi/compile_commands.json
+```
+
+The example assumes an existing sysbuild under build/uplink-rak3172-rzi.
+Choose the matching application-domain path for your board and build;
+the sysbuild root is not the application's compilation database. The
+repository-root compile_commands.json is ignored by Git. Update the local
+link when changing builds. Alternatively, select the build database using
+your editor's local --compile-commands-dir setting.
+
+Configure --query-driver in local editor settings when clangd needs to query
+the cross compiler for its target and system includes. Limit that setting
+to the trusted toolchain in your workspace. Keep absolute paths and any
+board-specific parser workarounds in local settings or user config rather
+than the shared .clangd. See the [clangd configuration guide](https://clangd.llvm.org/config).
+
 ## Write and commit changes
 
 - Follow the repository's Zephyr-based formatting and naming rules.
