@@ -13,7 +13,7 @@ import tempfile
 
 def main() -> int:
     repo = Path(__file__).resolve().parents[2]
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
     parser.add_argument('--out-dir', type=Path, default=repo / 'doc/book')
     args = parser.parse_args()
     output = args.out_dir.resolve()
@@ -33,14 +33,12 @@ def main() -> int:
                 target = stage / source.relative_to(repo / 'doc')
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(source, target)
-        subprocess.run([binary, 'build', str(stage), '--dest-dir', str(output)],
-                       check=True)
+        subprocess.run([binary, 'build', str(stage), '--dest-dir', str(output)], check=True)
     # mdBook names README pages index.html but can retain README.html in
     # cross-directory links with fragments. Normalize those generated links.
     for page in output.rglob('*.html'):
         text = page.read_text(encoding='utf-8')
-        text = re.sub(r'(href="(?:[^"#]*?/)?)(?:README)(\.html(?:#[^"]*)?")',
-                      r'\1index\2', text)
+        text = re.sub(r'(href="(?:[^"#]*?/)?)(?:README)(\.html(?:#[^"]*)?")', r'\1index\2', text)
         page.write_text(text, encoding='utf-8')
     print(f'mdbook: HTML at {output / "index.html"}')
     return 0

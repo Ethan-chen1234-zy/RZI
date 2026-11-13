@@ -66,16 +66,18 @@ def page_name(source: Path, repo: Path) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
     parser.add_argument('html', type=Path)
     args = parser.parse_args()
     repo = Path(__file__).resolve().parents[2]
     html = args.html.resolve()
     sources = [repo / 'CHANGELOG.md', repo / 'CONTRIBUTING.md', repo / '.github/SECURITY.md']
-    sources += [p for p in (repo / 'doc').rglob('*.md')
-                if not any(x in p.relative_to(repo / 'doc').parts
-                           for x in ('book', 'doxygen', 'reqmgmt'))
-                and p.name != 'SUMMARY.md']
+    sources += [
+        p
+        for p in (repo / 'doc').rglob('*.md')
+        if not any(x in p.relative_to(repo / 'doc').parts for x in ('book', 'doxygen', 'reqmgmt'))
+        and p.name != 'SUMMARY.md'
+    ]
     pages = {p.resolve(): page_name(p, repo) for p in sources}
     parsed = {}
     for source, page in pages.items():
