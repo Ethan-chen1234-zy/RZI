@@ -810,7 +810,6 @@ static int usp_deinit(void)
 
 const struct rzi_lorawan_backend_api rzi_lorawan_backend = {
 	.capabilities = USP_CAPABILITIES,
-	.supports_abp = true,
 	.base.init = usp_init,
 	.base.stop = usp_stop,
 	.base.deinit = usp_deinit,
