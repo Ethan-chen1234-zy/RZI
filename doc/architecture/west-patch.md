@@ -6,7 +6,7 @@ RZI owns the temporary compatibility patches required by its pinned backend
 dependencies. Applications import RZI through `west.yml` and do not copy
 these files.
 
-See also: [boot.md](boot.md).
+See also: [boot.md](boot.md), [usp-stack.md](usp-stack.md).
 
 The patch definition is stored in:
 
@@ -24,7 +24,8 @@ rzi/
         │   ├── 0005-stm32wl-subghz-radio.patch
         │   ├── 0006-zephyr-4.5-warning-fixes.patch
         │   ├── 0007-reuse-license-annotations.patch
-        │   └── 0008-stm32wl-tcxo-reset-and-irq.patch
+        │   ├── 0012-skip-disabled-log-formatting.patch
+        │   └── 0013-gate-2g4-region-on-radio-support.patch
         └── zephyr/
             ├── 0009-stm32wl-locked-pm-resume.patch
             ├── 0010-stm32-spi-resume-config.patch
@@ -34,9 +35,10 @@ rzi/
 Pins are USP v1.2.1 and Zephyr 4.5.0. v1.2.1 already contains the former
 Zephyr 4.4 warning fixes, the LR-FHSS source path, removal of the duplicate
 `xiao_nrf54l15` board, and the global SX1262 compile definition.
-`0005` teaches the USP SX126x driver the STM32WL on-chip SUBGHZ radio used by
-RAK3372. `0008` keeps that radio's level IRQ from spinning, and parks the CPU
-on HSI across a radio reset when HSE is the TCXO on PB0-VDD_TCXO. `0006`
+`0005` adds standalone STM32WL on-chip SUBGHZ transceiver support
+(`stm32wl_subghz_hal.c` and `stm32wl_subghz_board.c`) modeled on ST's
+`stm32wlxx_hal_subghz.c`, keeping `sx126x_hal.c` and `sx126x_board.c`
+exclusively for external SX126x radios. `0006`
 replaces the deprecated `<zephyr/sys_clock.h>` include and
 `SPI_OP_MODE_MASTER` on Zephyr 4.5. `usp/0001` exports session keys
 from the software secure element. The LR11xx crypto engine cannot export key
@@ -64,6 +66,57 @@ cannot yield, which is the idle thread during that locked resume
 ([#122312](https://github.com/zephyrproject-rtos/zephyr/pull/122312)).
 Drop each patch on its own once the pinned Zephyr revision contains it.
 
+## STM32WL SUBGHZ design rationale
+
+The STM32WL on-chip radio speaks the SX126x command set, so `usp` reuses
+`sx126x_driver`, `ral_sx126x`, and `ralf_sx126x` unchanged. Everything below
+`sx126x_hal.h` and `lora_lbm_transceiver.h`, however, differs from an external
+SX1261/1262/1268 over SPI + GPIOs. `0005` follows two rules so the two targets
+never interfere:
+
+1. **Build-time file split instead of `#if` branches in upstream SX126x files.**
+   When `st,stm32wl-subghz-radio` is enabled, `drivers/usp/CMakeLists.txt`
+   compiles `stm32wl_subghz_hal.c` and `stm32wl_subghz_board.c` *instead of*
+   `sx126x_hal.c` and `sx126x_board.c`. Upstream `sx126x_hal.c` stays untouched
+   and `sx126x_board.c` carries no STM32WL code, avoiding patch conflicts when
+   bumping `usp_zephyr` and preventing regressions on external SX1262 boards
+   (RAK4631, RAK3162).
+   - `stm32wl_subghz_hal.c` implements the synchronous radio-access contract
+     (`sx126x_hal_write`, `sx126x_hal_read`, `sx126x_hal_reset`,
+     `sx126x_hal_wakeup`) plus RF front-end switch GPIOs (`tx-enable-gpios`,
+     `rx-enable-gpios`, `antenna-enable-gpios`).
+   - `stm32wl_subghz_board.c` owns the single `DT_DRV_COMPAT` Zephyr device
+     instance (putting the radio into warm-start sleep at boot so `STDBY_RC`
+     does not block `STOP2`), EXTI 44 interrupt dispatch, `PM_DEVICE` clock
+     gating, and the `__weak` override of `ral_sx126x_bsp_get_tx_cfg()` for
+     `RFO_HP` / `RFO_LP` (on-chip SUBGHZ has no `tx-power-cfg` table in
+     Devicetree).
+
+2. **Direct `SUBGHZSPI` register access modeled on ST's `stm32wlxx_hal_subghz.c`
+   instead of Zephyr's generic `spi_stm32` driver.**
+   - *Why `spi_stm32` deadlocks on `SetSleep`:* `spi_stm32_complete()` spins on
+     `SPI_SR_BSY` with no timeout before releasing CS. Sending `SetSleep`
+     (`0x84`) puts the internal SUBGHZ block to sleep before `BSY` clears,
+     hanging the caller forever.
+   - *Why `SUBGHZSPI` is dedicated:* `SUBGHZSPI` is an internal point-to-point
+     link to the radio with no external pins or bus sharing. Driving `CR1`/`CR2`
+     and `DR` directly (`TXE` -> write -> `RXNE` -> read) with NSS controlled
+     via `LL_PWR_SelectSUBGHZSPI_NSS()` matches `HAL_SUBGHZ_ExecSetCmd()` /
+     `ExecGetCmd()` byte for byte, removes the `CONFIG_SPI` dependency when no
+     external SPI bus is used, and automatically restores `CR1`/`CR2` when STOP
+     mode clears peripheral registers.
+   - *Sleep and wakeup semantics:* Matching `HAL_SUBGHZ_ExecSetCmd()` and
+     `SUBGHZ_CheckDeviceReady()`, `SetSleep` releases NSS and returns without
+     polling `RFBUSYS`, both `SetSleep` and `SetRxDutyCycle` mark the radio as
+     sleeping, and waking from sleep asserts NSS until `LL_PWR_IsActiveFlag_RFBUSYS()`
+     clears without clocking dummy `GET_STATUS` SPI bytes.
+   - *Level IRQ and TCXO reset:* The internal radio IRQ on EXTI line 44 stays
+     high until `ClearIrqStatus` (`0x02`), so the ISR masks the NVIC line and
+     `sx126x_hal_write()` re-arms it after `ClearIrqStatus`. Because `LL_RCC_RF_EnableReset()`
+     also resets the `PB0-VDD_TCXO` regulator, `sx126x_hal_reset()` parks
+     `SYSCLK` on HSI whenever the CPU is clocked from that HSE TCXO, reprograms
+     `SET_TCXOMODE`, and restores the HSE PLL.
+
 ## Applying the patches
 
 Run the commands from the west workspace root after `west update`:
@@ -84,9 +137,10 @@ operation if a later patch fails.
 
 Warning: `clean` runs the configured `checkout-command`, currently
 `git checkout .`, in every destination module. It discards uncommitted tracked
-changes in those modules. `clean-command` removes only the untracked
-`REUSE.toml` that `usp/0004` and `usp_zephyr/0007` create, so the next
-`apply` can add it again; other untracked files are preserved.
+changes in those modules. `clean-command` removes only the untracked files
+created by the patch stack (`REUSE.toml`, `stm32wl_subghz_hal.c`, and
+`stm32wl_subghz_board.c`), so the next `apply` can add them again; other
+untracked files are preserved.
 
 ## Maintaining the manifest
 

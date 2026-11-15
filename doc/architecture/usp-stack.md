@@ -147,3 +147,22 @@ must not block on anything that waits for the USP thread.
 | `lbm/` (for example `periodical_uplink`) | LBM `smtc_modem_*`; RAC runs underneath | `lorawan/backend/usp` |
 | `rac/` (for example `multiprotocol`) | LBM and another protocol sharing the radio through RAC | LoRaWAN and P2P together |
 | `sdk/` (for example `ping_pong`) | Raw modulations submitted to RAC, no LoRaWAN | `lora/backend/lora_backend_usp.c` |
+
+## Radio BSP variants under `drivers/usp/sx126x/`
+
+External SX1261/1262/1268 boards (such as RAK4631 and RAK3162) and STM32WL
+on-chip SUBGHZ boards (RAK3172, RAK3372-F) share Semtech's portable
+`sx126x_driver` and `ral_sx126x`, but select mutually exclusive BSP/HAL sources
+in `drivers/usp/CMakeLists.txt` (via `usp_zephyr/0005-stm32wl-subghz-radio.patch`):
+
+| Target | Devicetree compatible | Compiled sources | Bus, busy, reset, IRQ |
+|---|---|---|---|
+| External SX126x | `semtech,sx126{1,2,8}-new` | `sx126x_hal.c` + `sx126x_board.c` + `sx126x_ral_bsp.c` | Zephyr `spi_dt_spec`, GPIO `busy` / `reset` / `dio1`, `dio2-as-rf-switch` |
+| STM32WL SUBGHZ | `st,stm32wl-subghz-radio` | `stm32wl_subghz_hal.c` + `stm32wl_subghz_board.c` + `sx126x_ral_bsp.c` | Direct `SUBGHZSPI` + `PWR` NSS, `PWR_SR2.RFBUSYS`, `RCC` RF reset, EXTI 44, GPIO RF switch |
+
+STM32WL bypasses Zephyr's generic `spi_stm32` driver and follows ST's
+`stm32wlxx_hal_subghz.c` directly because `SetSleep` puts the internal radio to
+sleep before `SPI_SR_BSY` clears (which hangs `spi_stm32`), and waking from
+sleep only requires holding internal NSS low until `RFBUSYS` clears. See
+[west-patch.md](west-patch.md#stm32wl-subghz-design-rationale)
+for the full design rationale.

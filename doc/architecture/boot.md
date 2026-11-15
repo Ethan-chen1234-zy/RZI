@@ -127,8 +127,7 @@ the matching legacy merged image, and expect settings to be lost.
 Sysbuild mode comes from the board `Kconfig.sysbuild`: 4631, 3362, and
 3372-F are overwrite-only; 3372 is `MCUBOOT_MODE_SINGLE_APP`. The radio is the
 STM32WLE5 on-chip SUBGHZ (`st,stm32wl-subghz-radio`). The USP driver
-needs `zephyr/patches/usp_zephyr/0005-stm32wl-subghz-radio.patch` and
-`0008-stm32wl-tcxo-reset-and-irq.patch`.
+needs `zephyr/patches/usp_zephyr/0005-stm32wl-subghz-radio.patch`.
 
 This is **not** compatible with RUI3 / factory Arduino boot: no `AT+BOOT`,
 `nrfutil`, or UF2. Moving to RZI is a one-time SWD boot change, the same
