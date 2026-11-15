@@ -131,6 +131,18 @@ patches:
       The all-regions option retains every Sub-GHz region on STM32WL and
       SX126x boards without compiling the unsupported 2.4 GHz region.
 
+  - path: usp_zephyr/0014-usp-idle-until-init.patch
+    sha256sum: a002361f092fe2a230ca5b14e1a5718e7a683794a80c813b7bcea115da6cd657
+    module: usp_zephyr
+    author: rzi
+    email: patches@rzi.local
+    date: 2026-11-10
+    upstreamable: true
+    apply-command: git apply
+    comments: |
+      When CONFIG_RZI_USP_IDLE_UNTIL_INIT=y, let the USP thread sleep until
+      the modem is initialized instead of polling every 50 ms.
+
   - path: zephyr/0009-stm32wl-locked-pm-resume.patch
     sha256sum: 22b3f283240da422119fcb8ccb2cd0f39f62f153073ec22a23086749eee19b92
     module: zephyr
@@ -173,3 +185,16 @@ patches:
       cannot yield. Matches upstream
       https://github.com/zephyrproject-rtos/zephyr/pull/122312.
       Drop this patch once the pinned Zephyr revision contains it.
+
+  - path: zephyr/0012-stm32wl-lpuart-wakeup-drain.patch
+    sha256sum: 146f63dbe991944ef0fa9067f1349b35096fe7c848e060e77a9c1a19a6c2ddd7
+    module: zephyr
+    author: rzi
+    email: patches@rzi.local
+    date: 2026-11-10
+    upstreamable: true
+    apply-command: git apply
+    comments: |
+      Drain the STM32WL LPUART FIFO after STOP and before the PM core
+      restores clocks. Apply after zephyr/0009, which leaves wake IRQs
+      masked across that window. The AT UART adapter supplies the drain.

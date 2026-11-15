@@ -87,11 +87,13 @@ accepted, not that the radio operation has completed.
   that readback. Without `CONFIG_PM`, query reports 0 and writes return
   `AT_ERROR`; ordinary CPU idle remains available. Without
   `CONFIG_RZI_POWER`, both reads and writes return `AT_ERROR`.
+- `AT+LPMLVL` reads or sets the STM32WL STOP level when `CONFIG_PM=y`.
+  `1` keeps STOP1 and locks STOP2. `2` keeps STOP2 and locks STOP1.
+  The default is `1`. On other SoCs the value is stored and does not
+  select a hardware sleep state.
 
 ### Compatible with limits
 
-- `AT+LPMLVL` accepts and reports `1` or `2`, but does not change the power
-  policy or select a hardware sleep state.
 - `AT+BAT` and `AT+SYSV` are registered and return `AT_ERROR` until a product
   ADC path exists.
 - `AT+BLEMAC` returns the Bluetooth identity address when `CONFIG_BT=y`,

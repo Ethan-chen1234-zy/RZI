@@ -40,8 +40,10 @@ across boards. For example, STM32WL maps STOP0/1/2 to
 
 The application enables `CONFIG_PM`. The idle thread and Zephyr PM policy
 then select a state using configured `cpu-power-states`, residency times,
-exit latency, pending events, and native locks. RZI does not select a
-specific state, force STOP2, or promise RAM retention for arbitrary boards.
+exit latency, pending events, and native locks. The power service does not
+select a specific state, force STOP2, or promise RAM retention for arbitrary
+boards. On STM32WL, `AT+LPMLVL` locks the unused STOP substate from the AT
+command.
 
 | Layer | Responsibility |
 |---|---|

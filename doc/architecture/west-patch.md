@@ -25,11 +25,13 @@ rzi/
         │   ├── 0006-zephyr-4.5-warning-fixes.patch
         │   ├── 0007-reuse-license-annotations.patch
         │   ├── 0012-skip-disabled-log-formatting.patch
-        │   └── 0013-gate-2g4-region-on-radio-support.patch
+        │   ├── 0013-gate-2g4-region-on-radio-support.patch
+        │   └── 0014-usp-idle-until-init.patch
         └── zephyr/
             ├── 0009-stm32wl-locked-pm-resume.patch
             ├── 0010-stm32-spi-resume-config.patch
-            └── 0011-spi-nor-dpd-resume-delay.patch
+            ├── 0011-spi-nor-dpd-resume-delay.patch
+            └── 0012-stm32wl-lpuart-wakeup-drain.patch
 ```
 
 Pins are USP v1.2.1 and Zephyr 4.5.0. v1.2.1 already contains the former
@@ -64,6 +66,10 @@ transfer restores CR1/CR2 after STOP
 `zephyr/0011` busy-waits for a SPI NOR deep-power-down delay when the caller
 cannot yield, which is the idle thread during that locked resume
 ([#122312](https://github.com/zephyrproject-rtos/zephyr/pull/122312)).
+`usp_zephyr/0014` lets the USP thread sleep until the modem is initialized
+when `CONFIG_RZI_USP_IDLE_UNTIL_INIT=y`. `zephyr/0012` drains
+the LPUART FIFO after STOP, before the PM core restores clocks. Apply it
+after `0009`.
 Drop each patch on its own once the pinned Zephyr revision contains it.
 
 ## STM32WL SUBGHZ design rationale
