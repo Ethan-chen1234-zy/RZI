@@ -96,6 +96,33 @@ patches:
       Semtech copyright to sources and build files that carry no SPDX tags.
       Files with their own SPDX tags keep them.
 
+  - path: usp_zephyr/0012-skip-disabled-log-formatting.patch
+    sha256sum: cff3db2a8961e529cd3425783bde7bcacaae20d2202aceb8ba6c46ec7cf37441
+    module: usp_zephyr
+    author: rzi
+    email: patches@rzi.local
+    date: 2026-11-09
+    upstreamable: true
+    apply-command: git apply
+    comments: |
+      Gate USP and LBM trace formatting on Z_LOG_CONST_LEVEL_CHECK(level)
+      across both debug-trace headers and follow CONFIG_USP_LOG_LEVEL in
+      the USP helpers, so filtered or disabled log levels elide format
+      strings and snprintf() calls at compile time.
+
+  - path: usp_zephyr/0013-gate-2g4-region-on-radio-support.patch
+    sha256sum: dcb6e16c5ea2cceddd76308d7d11c64c762edcbaa2c14a54f43d29afd2b2d0d3
+    module: usp_zephyr
+    author: rzi
+    email: patches@rzi.local
+    date: 2026-11-09
+    upstreamable: true
+    apply-command: git apply
+    comments: |
+      Only enable the WW_2G4 region for supported 2.4 GHz transceivers.
+      The all-regions option retains every Sub-GHz region on STM32WL and
+      SX126x boards without compiling the unsupported 2.4 GHz region.
+
   - path: zephyr/0010-stm32-spi-resume-config.patch
     sha256sum: 544b6c60762a6cdc384ca8cc8444da64299f28bf0302167f4ff8ce8ea51b63a2
     module: zephyr

@@ -106,7 +106,7 @@ patches:
       Files with their own SPDX tags keep them.
 
   - path: usp_zephyr/0012-skip-disabled-log-formatting.patch
-    sha256sum: 4c092cf454417d74ef31e1f1d5202d420eb47c9cd9a12842a44716abc6147e8b
+    sha256sum: cff3db2a8961e529cd3425783bde7bcacaae20d2202aceb8ba6c46ec7cf37441
     module: usp_zephyr
     author: rzi
     email: patches@rzi.local
@@ -114,9 +114,10 @@ patches:
     upstreamable: true
     apply-command: git apply
     comments: |
-      Skip USP trace formatting and string trimming when CONFIG_LOG is off.
-      Disabled Zephyr logging must not retain modem log strings or perform
-      snprintf calls before discarding the output.
+      Gate USP and LBM trace formatting on Z_LOG_CONST_LEVEL_CHECK(level)
+      across both debug-trace headers and follow CONFIG_USP_LOG_LEVEL in
+      the USP helpers, so filtered or disabled log levels elide format
+      strings and snprintf() calls at compile time.
 
   - path: usp_zephyr/0013-gate-2g4-region-on-radio-support.patch
     sha256sum: dcb6e16c5ea2cceddd76308d7d11c64c762edcbaa2c14a54f43d29afd2b2d0d3
