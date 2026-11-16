@@ -56,6 +56,74 @@ command.
 Ordinary CPU idle still works when system PM is disabled. Device runtime PM
 is independent of the system PM switch.
 
+## P2P activity and low-power policy
+
+Status: implemented for the USP P2P backend; hardware acceptance pending.
+
+For P2P LoRa and FSK, an enabled receive operation or an in-flight transmit
+must prevent system STOP entry. When neither operation is active, the system
+may enter low power, subject to the LPM switch, other service locks, and
+Zephyr policy. Selecting P2P mode or initializing its service alone must not
+keep the system awake. Ordinary kernel CPU idle is distinct from STOP entry.
+
+| P2P activity | Required behavior |
+|---|---|
+| No RX and no TX | Permit low power; park the radio when no other radio owner needs it. |
+| Timed or continuous RX enabled | Hold an activity PM reference for the entire receive operation. |
+| TX in progress | Hold an activity PM reference until completion, timeout, or cancellation. |
+| RX ends or is explicitly stopped | Release the RX reference once reception has actually stopped. |
+| TX finishes while continuous RX remains enabled | Release only TX ownership; keep RX protected. |
+
+Use paired operation ownership, including submission failures and abort paths.
+Deliver pending completions before discarding their processing responsibility.
+An RF completion interrupt is not the same as delivery of an application
+callback. Preventing STOP does not unblock a thread waiting forever on a
+semaphore. With the USP backend, P2P still needs `rzi_lora_poll()` to dispatch
+queued results; the USP backend wakes the AT thread via `rzi_at_wake()` as soon
+as a TX or RX completion is queued, avoiding periodic timer wakeups during idle
+or continuous RX.
+Startup extension processing runs before the first UART wait.
+A separate always-running P2P dispatcher is not required by this policy.
+
+Reference behavior was reviewed in the local RUI3 source
+`component/service/lora/service_lora_p2p.c`: `service_lora_p2p_send()` takes a
+wake lock; `service_lora_p2p_recv()` takes one for enabled reception and
+unlocks on explicit stop; completion/timeout handlers release ownership
+when the operation ends. RUI3 continuous modes retain reception as appropriate.
+This is a behavioral reference, not a requirement to copy its lock accounting
+or its special receive-mode numeric values into RZI.
+
+The USP backend acquires one native all-state PM reference before submitting
+RX/TX and retains it while either operation or deferred completions remain.
+It releases the reference from poll after the work is drained, or on successful
+stop/failed submission when no work remains. This protection depends on `CONFIG_PM`,
+not `CONFIG_RZI_POWER`; it is separate from the named RZI power-lock mask.
+Native clients must continue to call `rzi_lora_poll()` until completions are
+drained, otherwise the reference deliberately remains held. The USP receive
+activity query now reads backend state, including timeout and one-shot endings.
+The blocking Zephyr backend is not changed by this implementation.
+
+### STOP while receiving (`CONFIG_RZI_LORA_USP_RX_IRQ_WAKE`)
+
+When `CONFIG_RZI_LORA_USP_RX_IRQ_WAKE=y` (default on STM32WL SUBGHZ when
+`CONFIG_PM=y`), an open P2P receive window does not hold the PM reference
+while listening. On STM32WL the on-chip
+SUBGHZ radio keeps its own HSE/TCXO oscillator active in RX while the CPU
+enters `STOP1` or `STOP2`, and EXTI line 44 wakes the MCU on `RxDone` or
+`RxTimeout`:
+
+| State | PM reference |
+|---|---|
+| RX listening, queue empty | Not held (`STOP` allowed) |
+| TX in flight | Held until TX completion, timeout, or cancellation |
+| Packet queued, not yet delivered | Held until `rzi_lora_poll()` drains it |
+| RX cancel pending | Held until the RAC abort callback completes |
+| Packet delivered or RX stopped | Released |
+
+Continuous RX (`65535`) chains 60 s RAC windows, so the MCU wakes once per
+minute to resubmit the window in addition to waking immediately on received
+packets. Boards whose radio IRQ cannot wake from `STOP` keep this option off.
+
 ## Runtime PM switch
 
 `rzi_power_set_pm_enabled(false)` takes one native

@@ -44,6 +44,37 @@ another thread, add queue latency on every P2P path, and blur ownership with
 the LoRaWAN dispatcher. Keep backend-native completion until a product need
 requires a driver-level async API.
 
+## P2P low-power policy
+
+Status: implemented for USP; hardware acceptance pending.
+
+P2P LoRa and FSK follow activity-based power ownership:
+
+- RX enabled (timed or continuous): prevent system STOP for the complete
+  receive operation, including intervals between packets in continuous RX.
+- TX in flight: prevent system STOP until completion, timeout, or cancellation.
+- Neither RX nor TX active: permit low power when other system constraints allow.
+
+An initialized P2P service alone is not an active receive operation. Ending
+TX must not release the protection of a receive operation that remains active.
+Failures, explicit stop, timeout, and deinit balance activity ownership.
+USP stop/deinit can return BUSY while RAC completes cancellation; keep polling
+and retry. A new receive request returns BUSY while another RX or its
+cancellation is pending; stop reception first before starting another window.
+Shared-radio ownership must be respected when putting the radio to sleep.
+
+Keeping the CPU out of STOP does not dispatch USP callbacks by itself.
+The current poll-based completion contract still applies. AT runs extensions
+once at startup and wakes immediately when the USP backend queues a TX or RX
+completion, without periodic timer polling or another serial command. Native
+clients retain their explicit poll responsibility.
+With `CONFIG_RZI_LORA_USP_RX_IRQ_WAKE` (enabled by default on STM32WL SUBGHZ
+when `CONFIG_PM=y`), an open receive window does not hold the PM reference
+while listening; TX, pending cancellation, and queued completions still do.
+See [P2P power ownership](../architecture/power.md#p2p-activity-and-low-power-policy)
+for the RUI3 reference and the current implementation gaps. This policy does
+not require adding a dedicated raw-radio dispatcher thread.
+
 ## Lifecycle
 
 `rzi_lora_init()` selects LoRa or FSK operation and applies the stored

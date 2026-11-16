@@ -45,8 +45,8 @@ UART. The current optional pieces are:
 - `CONFIG_RZI_AT_ECHO`: terminal input echo;
 - `CONFIG_RZI_AT_NVM`: persistence through the public RZI storage service.
 
-Buffer sizes, registry capacity, thread stack, priority, and extension polling
-interval are separate Kconfig settings. Future command packages and I/O
+Buffer sizes, registry capacity, thread stack, and thread priority are
+separate Kconfig settings. Future command packages and I/O
 adapters must follow the same dependency direction. The BLE UART adapter is a
 reserved `0.0.0` boundary based on RUI3 `SERIAL_BLE0` and is not compiled.
 Zephyr USB CDC ACM uses the implemented UART adapter.
