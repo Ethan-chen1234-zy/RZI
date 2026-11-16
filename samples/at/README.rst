@@ -51,7 +51,7 @@ RZI does not hardcode any flash address. The storage area is board-defined
 through devicetree, following the standard Zephyr convention:
 
 * a partition labeled ``storage_partition`` in the RZI product-board
-  partition table (``rak4631/nrf52840/rzi`` places 32 KiB at the end of internal flash), or
+  partition table (``rak4631/nrf52840/rzi`` places 24 KiB at ``0xf8000``), or
 * a ``zephyr,settings-partition`` chosen node pointing at any partition,
   including one on external SPI flash.
 

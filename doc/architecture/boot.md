@@ -35,20 +35,27 @@ Adding a board only adds that board's DTS and flash notes.
 | `rak3372_f` | RAK3372-F | `rak3372_f/stm32wle5xx` | Overwrite-only MCUBoot; image-1 on the on-module MX25L400; FUOTA |
 | `rak3362` | RAK3362 | `rak3362/nrf54l15/cpuapp` | Overwrite-only MCUBoot; SX1262 on SPI22; console and AT on uart20 |
 
-nRF52840 (RAK4631) partitions are shared by native Zephyr and
-ArduinoCore-zephyr:
+nRF52840 (RAK4631) keeps the upstream Zephyr boot and slot
+addresses. Native Zephyr and ArduinoCore-zephyr share this map. The
+upstream 192 KB storage region holds the sketch, settings, and the
+LoRa Basics Modem context:
 
 | Partition | Address | Size | Use |
 |---|---|---|---|
-| `mcuboot` | `0x00000` | 48 KB | Sole bootloader |
-| `image-0` | `0x0c000` | 304 KB | RZI app or Arduino loader |
-| `image-1` | `0x58000` | 304 KB | FUOTA / slot swap |
-| `user` | `0xa4000` | 336 KB | Arduino LLEXT sketch |
+| `mcuboot` | `0x00000` | 64 KB | Sole bootloader |
+| `image-0` | `0x10000` | 384 KB | RZI app or Arduino loader |
+| `image-1` | `0x70000` | 384 KB | FUOTA / slot swap |
+| `user` | `0xd0000` | 160 KB | Arduino LLEXT sketch |
 | `storage` | `0xf8000` | 24 KB | Zephyr settings / NVS |
 | `lora_context` | `0xfe000` | 8 KB | LoRa Basics Modem context |
 
-Changing mode only replaces the signed image in slot0. MCUBoot stays.
-Native applications ignore the `user` partition.
+The `rzi` snippet installs this map on `rak4631/nrf52840`. Changing
+mode only replaces the signed image in slot0. MCUBoot, the sketch,
+settings, and the modem context stay in place. Native applications
+ignore the `user` partition. An image or sketch built for the previous
+48 KB boot, 304 KB slots, and 336 KB sketch at `0xa4000` must be
+flashed as a merged hex after a full erase. Its slot trailer now sits
+inside the new application image.
 
 STM32WLE5 (RAK3372, 256 KB) is single-slot and has no `image-1` / `user`.
 Settings and the LoRa Basics Modem context do not share a partition:
