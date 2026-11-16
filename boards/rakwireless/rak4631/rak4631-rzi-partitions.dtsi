@@ -3,9 +3,10 @@
 /*
  * rak4631/nrf52840/rzi flash map (nRF52840, 1 MB).
  * MCUboot boots slot0. Slot1 is the FUOTA / swap image. user_sketch
- * holds the Arduino LLEXT; native Zephyr apps ignore that node.
+ * holds the Arduino LLEXT; native Zephyr apps ignore that node. Settings
+ * and the LoRa Basics Modem context do not share a partition.
  *
- * 48K boot + 304K slot0 + 304K slot1 + 336K sketch + 32K storage.
+ * 48K boot + 304K slot0 + 304K slot1 + 336K sketch + 24K storage + 8K context.
  */
 
 / {
@@ -13,6 +14,7 @@
 		zephyr,sram = &sram0;
 		zephyr,flash = &flash0;
 		zephyr,code-partition = &slot0_partition;
+		lora-basics-modem-context-partition = &lora_context_partition;
 	};
 };
 
@@ -50,7 +52,13 @@
 		storage_partition: partition@f8000 {
 			compatible = "zephyr,mapped-partition";
 			label = "storage";
-			reg = <0x000f8000 0x00008000>;
+			reg = <0x000f8000 0x00006000>;
+		};
+
+		lora_context_partition: partition@fe000 {
+			compatible = "zephyr,mapped-partition";
+			label = "lora_context";
+			reg = <0x000fe000 0x00002000>;
 		};
 	};
 };

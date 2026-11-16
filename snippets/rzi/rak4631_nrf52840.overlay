@@ -6,6 +6,30 @@
 / {
 	chosen {
 		zephyr,lorawan-transceiver = &lora;
+		lora-basics-modem-context-partition = &lora_context_partition;
+	};
+};
+
+/*
+ * ArduinoCore-zephyr places storage_partition at 0xf8000 (32 KB), matching
+ * rak4631-rzi-partitions.dtsi. Reserve the last 8 KB for the LoRa Basics
+ * Modem context so direct flash writes do not corrupt NVS settings.
+ */
+/delete-node/ &storage_partition;
+
+&flash0 {
+	partitions {
+		storage_partition: partition@f8000 {
+			compatible = "zephyr,mapped-partition";
+			label = "storage";
+			reg = <0x000f8000 0x00006000>;
+		};
+
+		lora_context_partition: partition@fe000 {
+			compatible = "zephyr,mapped-partition";
+			label = "lora_context";
+			reg = <0x000fe000 0x00002000>;
+		};
 	};
 };
 

@@ -44,7 +44,8 @@ ArduinoCore-zephyr:
 | `image-0` | `0x0c000` | 304 KB | RZI app or Arduino loader |
 | `image-1` | `0x58000` | 304 KB | FUOTA / slot swap |
 | `user` | `0xa4000` | 336 KB | Arduino LLEXT sketch |
-| `storage` | `0xf8000` | 32 KB | settings |
+| `storage` | `0xf8000` | 24 KB | Zephyr settings / NVS |
+| `lora_context` | `0xfe000` | 8 KB | LoRa Basics Modem context |
 
 Changing mode only replaces the signed image in slot0. MCUBoot stays.
 Native applications ignore the `user` partition.
@@ -74,7 +75,8 @@ upstream nRF54L15 boards without FLPR:
 | `mcuboot` | `0x000000` | 64 KB | Sole bootloader |
 | `image-0` | `0x010000` | 712 KB | RZI application |
 | `image-1` | `0x0c2000` | 712 KB | FUOTA / overwrite |
-| `storage` | `0x174000` | 36 KB | settings |
+| `storage` | `0x174000` | 28 KB | Zephyr settings / NVS |
+| `lora_context` | `0x17b000` | 8 KB | LoRa Basics Modem context |
 
 RAK3372-F uses a larger boot partition than RAK3372, because MCUboot
 must drive the MX25L400, and adds the secondary slot on that NOR:
