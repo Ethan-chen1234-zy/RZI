@@ -830,7 +830,9 @@ const struct rzi_lorawan_backend_api rzi_lorawan_backend = {
 #ifdef CONFIG_LORA_BASICS_MODEM_MULTICAST
 	.multicast = &usp_multicast_ops,
 #endif
+#ifdef CONFIG_LORA_BASICS_MODEM_CERTIFICATION
 	.certification = &usp_cert_ops,
+#endif
 #ifdef CONFIG_RZI_LORAWAN_FUOTA
 	.fuota = &usp_fuota_ops,
 #endif

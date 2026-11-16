@@ -90,12 +90,12 @@ physical context capacity. Account for any other enabled context users.
 
 | Current sample target | Modem-context area | Space after the FUOTA offset |
 |---|---|---|
-| RAK4631 | 32 KiB storage partition, also used by modem context | At most 28 KiB before other uses |
+| RAK4631 | Separate 8 KiB modem-context partition | At most 4 KiB |
 | RAK3372-F | Separate 8 KiB modem-context partition | At most 4 KiB |
 
-The 4096-byte protocol test file is at the RAK3372-F context limit.
-It does not demonstrate whole-firmware capacity. Storage/NVS sharing on
-RAK4631 must also be reviewed before using the shared region in a product.
+The 4096-byte protocol test file is at that context limit.
+It does not demonstrate whole-firmware capacity. Settings NVS uses
+`storage_partition` and does not share sectors with this context area.
 
 A whole-firmware update needs all of the following:
 

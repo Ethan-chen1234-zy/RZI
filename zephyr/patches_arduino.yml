@@ -66,6 +66,19 @@ patches:
       tags; base64 is BSD-3-Clause, and the Gladman AES and Casado/Tsigas CMAC
       files get LicenseRef identifiers for the texts kept in LICENSES.txt.
 
+  - path: usp/0015-optional-certification-and-test-mode.patch
+    sha256sum: 4edcbc0786fef38b2e332bfeef13d352e762a59225085ba087f236757f5ac9a4
+    module: usp
+    author: rzi
+    email: patches@rzi.local
+    date: 2026-11-16
+    upstreamable: true
+    apply-command: git apply
+    comments: |
+      Make the LoRaWAN certification package and radio test mode optional
+      (ADD_LBM_CERTIFICATION, ADD_LBM_TEST_MODE), elide empty service loops,
+      and skip test-mode busy checks when ADD_LBM_TEST_MODE is disabled.
+
   - path: usp_zephyr/0005-stm32wl-subghz-radio.patch
     sha256sum: 1918961136fe1791d9abc29aee44bc07c2e4a786590195600322d7dd8e5f3bfc
     module: usp_zephyr
@@ -95,6 +108,46 @@ patches:
       Add a REUSE.toml so west spdx attributes the Clear BSD license and
       Semtech copyright to sources and build files that carry no SPDX tags.
       Files with their own SPDX tags keep them.
+
+  - path: usp_zephyr/0012-skip-disabled-log-formatting.patch
+    sha256sum: cff3db2a8961e529cd3425783bde7bcacaae20d2202aceb8ba6c46ec7cf37441
+    module: usp_zephyr
+    author: rzi
+    email: patches@rzi.local
+    date: 2026-11-09
+    upstreamable: true
+    apply-command: git apply
+    comments: |
+      Gate USP and LBM trace formatting on Z_LOG_CONST_LEVEL_CHECK(level)
+      across both debug-trace headers and follow CONFIG_USP_LOG_LEVEL in
+      the USP helpers, so filtered or disabled log levels elide format
+      strings and snprintf() calls at compile time.
+
+  - path: usp_zephyr/0013-gate-2g4-region-on-radio-support.patch
+    sha256sum: dcb6e16c5ea2cceddd76308d7d11c64c762edcbaa2c14a54f43d29afd2b2d0d3
+    module: usp_zephyr
+    author: rzi
+    email: patches@rzi.local
+    date: 2026-11-09
+    upstreamable: true
+    apply-command: git apply
+    comments: |
+      Only enable the WW_2G4 region for supported 2.4 GHz transceivers.
+      The all-regions option retains every Sub-GHz region on STM32WL and
+      SX126x boards without compiling the unsupported 2.4 GHz region.
+
+  - path: usp_zephyr/0016-optional-certification-and-test-mode.patch
+    sha256sum: b166fc13c06b8c8e9f8b4eb5a1ffef11d34d8e08ac09a00ad915c62632056ab7
+    module: usp_zephyr
+    author: rzi
+    email: patches@rzi.local
+    date: 2026-11-16
+    upstreamable: true
+    apply-command: git apply
+    comments: |
+      Add LORA_BASICS_MODEM_CERTIFICATION and LORA_BASICS_MODEM_TEST_MODE
+      (both default y) so firmware can exclude lorawan_certification.c and
+      smtc_modem_test.c.
 
   - path: zephyr/0010-stm32-spi-resume-config.patch
     sha256sum: 544b6c60762a6cdc384ca8cc8444da64299f28bf0302167f4ff8ce8ea51b63a2

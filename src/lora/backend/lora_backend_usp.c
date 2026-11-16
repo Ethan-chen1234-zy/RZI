@@ -16,7 +16,9 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/atomic.h>
 #include <smtc_modem_hal.h>
+#ifdef CONFIG_LORA_BASICS_MODEM_TEST_MODE
 #include <smtc_modem_test_api.h>
+#endif
 #include <smtc_rac_api.h>
 
 #include <zephyr/pm/policy.h>
@@ -32,8 +34,10 @@
 /* Continuous receive is a chain of windows of this length. */
 #define RX_WINDOW_MS  60000U
 
+#ifdef CONFIG_LORA_BASICS_MODEM_TEST_MODE
 /* smtc_modem_test_get_rssi() reports RSSI + 64. */
 #define USP_TEST_RSSI_OFFSET 64
+#endif
 
 /* LoRa Basics Modem test-mode FSK packet format. */
 #define FSK_PREAMBLE_DETECTOR RAL_GFSK_PREAMBLE_DETECTOR_MIN_16BITS
@@ -56,7 +60,9 @@ static struct rzi_lora_config config;
 static enum rzi_lora_modulation modulation = RZI_LORA_MOD_LORA;
 static bool opened;
 static bool platform_acquired;
+#ifdef CONFIG_LORA_BASICS_MODEM_TEST_MODE
 static bool test_mode;
+#endif
 static bool tx_busy;
 static bool rx_active;
 static bool rx_cancel_pending;
@@ -147,6 +153,7 @@ static uint8_t lora_sync_byte(uint16_t sync_word)
 	return (uint8_t)sync_word;
 }
 
+#ifdef CONFIG_LORA_BASICS_MODEM_TEST_MODE
 static smtc_modem_test_mode_sync_word_t test_sync(uint16_t sync_word)
 {
 	switch (lora_sync_byte(sync_word)) {
@@ -160,6 +167,7 @@ static smtc_modem_test_mode_sync_word_t test_sync(uint16_t sync_word)
 		return SYNC_WORD_0x34;
 	}
 }
+#endif
 
 static void fill_lora(smtc_rac_context_t *ctx, bool is_tx, uint16_t size, uint32_t timeout_ms)
 {
@@ -359,6 +367,7 @@ static int abort_p2p(void)
 	return rx_cancel_pending || tx_busy ? -RZI_ERR_BUSY : 0;
 }
 
+#ifdef CONFIG_LORA_BASICS_MODEM_TEST_MODE
 /* With the lock held. Test mode suspends LoRaWAN until leave_test_mode(). */
 static int enter_test_mode(void)
 {
@@ -392,6 +401,12 @@ static int leave_test_mode(void)
 	}
 	return rc;
 }
+#else
+static int leave_test_mode(void)
+{
+	return 0;
+}
+#endif
 
 static int usp_init(enum rzi_lora_modulation value)
 {
@@ -535,6 +550,7 @@ static int usp_receive(uint32_t timeout_ms)
 	return rc;
 }
 
+#ifdef CONFIG_LORA_BASICS_MODEM_TEST_MODE
 static int usp_test_rssi(void)
 {
 	int rc;
@@ -624,6 +640,7 @@ static int usp_test_stop(void)
 	rzi_usp_unlock();
 	return rc;
 }
+#endif
 
 static bool usp_receive_active(void)
 {
@@ -658,6 +675,7 @@ const struct rzi_lora_backend_api rzi_lora_backend = {
 	.apply_config = usp_apply,
 	.send = usp_send,
 	.receive = usp_receive,
+#ifdef CONFIG_LORA_BASICS_MODEM_TEST_MODE
 	.test_rssi = usp_test_rssi,
 	.test_get_rssi = usp_test_get_rssi,
 	.test_tone = usp_test_tone,
@@ -665,6 +683,7 @@ const struct rzi_lora_backend_api rzi_lora_backend = {
 	.test_rx = usp_test_rx,
 	.test_cw = usp_test_cw,
 	.test_stop = usp_test_stop,
+#endif
 	.receive_active = usp_receive_active,
 	.poll = usp_poll,
 };
