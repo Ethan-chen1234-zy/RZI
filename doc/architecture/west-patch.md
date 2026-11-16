@@ -19,14 +19,16 @@ rzi/
         │   ├── 0001-export-secure-element-session-keys.patch
         │   ├── 0002-ral-sx126x-frequency-limits.patch
         │   ├── 0003-user-channel-mask.patch
-        │   └── 0004-reuse-license-annotations.patch
+        │   ├── 0004-reuse-license-annotations.patch
+        │   └── 0015-optional-certification-and-test-mode.patch
         ├── usp_zephyr/
         │   ├── 0005-stm32wl-subghz-radio.patch
         │   ├── 0006-zephyr-4.5-warning-fixes.patch
         │   ├── 0007-reuse-license-annotations.patch
         │   ├── 0012-skip-disabled-log-formatting.patch
         │   ├── 0013-gate-2g4-region-on-radio-support.patch
-        │   └── 0014-usp-idle-until-init.patch
+        │   ├── 0014-usp-idle-until-init.patch
+        │   └── 0016-optional-certification-and-test-mode.patch
         └── zephyr/
             ├── 0009-stm32wl-locked-pm-resume.patch
             ├── 0010-stm32-spi-resume-config.patch
@@ -67,7 +69,10 @@ transfer restores CR1/CR2 after STOP
 cannot yield, which is the idle thread during that locked resume
 ([#122312](https://github.com/zephyrproject-rtos/zephyr/pull/122312)).
 `usp_zephyr/0014` lets the USP thread sleep until the modem is initialized
-when `CONFIG_RZI_USP_IDLE_UNTIL_INIT=y`. `zephyr/0012` drains
+when `CONFIG_RZI_USP_IDLE_UNTIL_INIT=y`. `usp/0015` and `usp_zephyr/0016`
+gate the LoRaWAN certification package and radio test mode on
+`CONFIG_LORA_BASICS_MODEM_CERTIFICATION` and `CONFIG_LORA_BASICS_MODEM_TEST_MODE`
+(both default `y`) so flash-constrained builds can omit them. `zephyr/0012` drains
 the LPUART FIFO after STOP, before the PM core restores clocks. Apply it
 after `0009`.
 Drop each patch on its own once the pinned Zephyr revision contains it.

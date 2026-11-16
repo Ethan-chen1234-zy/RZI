@@ -62,6 +62,19 @@ patches:
       tags; base64 is BSD-3-Clause, and the Gladman AES and Casado/Tsigas CMAC
       files get LicenseRef identifiers for the texts kept in LICENSES.txt.
 
+  - path: usp/0015-optional-certification-and-test-mode.patch
+    sha256sum: 4edcbc0786fef38b2e332bfeef13d352e762a59225085ba087f236757f5ac9a4
+    module: usp
+    author: rzi
+    email: patches@rzi.local
+    date: 2026-11-16
+    upstreamable: true
+    apply-command: git apply
+    comments: |
+      Make the LoRaWAN certification package and radio test mode optional
+      (ADD_LBM_CERTIFICATION, ADD_LBM_TEST_MODE), elide empty service loops,
+      and skip test-mode busy checks when ADD_LBM_TEST_MODE is disabled.
+
   - path: usp_zephyr/0005-stm32wl-subghz-radio.patch
     sha256sum: 1918961136fe1791d9abc29aee44bc07c2e4a786590195600322d7dd8e5f3bfc
     module: usp_zephyr
@@ -143,6 +156,19 @@ patches:
     comments: |
       When CONFIG_RZI_USP_IDLE_UNTIL_INIT=y, let the USP thread sleep until
       the modem is initialized instead of polling every 50 ms.
+
+  - path: usp_zephyr/0016-optional-certification-and-test-mode.patch
+    sha256sum: b166fc13c06b8c8e9f8b4eb5a1ffef11d34d8e08ac09a00ad915c62632056ab7
+    module: usp_zephyr
+    author: rzi
+    email: patches@rzi.local
+    date: 2026-11-16
+    upstreamable: true
+    apply-command: git apply
+    comments: |
+      Add LORA_BASICS_MODEM_CERTIFICATION and LORA_BASICS_MODEM_TEST_MODE
+      (both default y) so firmware can exclude lorawan_certification.c and
+      smtc_modem_test.c.
 
   - path: zephyr/0009-stm32wl-locked-pm-resume.patch
     sha256sum: 22b3f283240da422119fcb8ccb2cd0f39f62f153073ec22a23086749eee19b92
